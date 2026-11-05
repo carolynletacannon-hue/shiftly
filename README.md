@@ -4,7 +4,7 @@ A mobile-first scheduling product for small teams. Shiftly provides Supabase aut
 
 ## Deploy with GitHub and Vercel
 
-1. For an existing Phase 2 Shiftly installation, apply **only** `supabase/migrations/20261105060000_coverage_scheduling.sql` before merging or deploying this release. Do not rerun existing migrations. See [coverage scheduling migration and smoke-test instructions](docs/COVERAGE-SCHEDULING.md). The initial database setup below is for new installations only.
+1. For an installation with coverage scheduling already applied, apply **only** `supabase/migrations/20261105060001_simple_weekly_scheduling.sql` before merging or deploying this release. Do not rerun existing migrations. See [roster backfill, migration gate and validation](docs/SIMPLE-SCHEDULING.md). The initial database setup below is for new installations only.
 2. In Vercel → Project → Settings → Environment Variables, configure:
    - `NEXT_PUBLIC_SUPABASE_URL`: your project's URL (already configured).
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: your project's publishable key (already configured).
@@ -69,6 +69,17 @@ Apply only [`20261105060000_coverage_scheduling.sql`](supabase/migrations/202611
 to an existing Phase 2 database before deploying this UI. Existing drafts and
 published schedules are preserved and never regenerated. See the
 [exact migration order and rollout checks](docs/COVERAGE-SCHEDULING.md).
+
+## Simple weekly setup and employees without accounts
+
+The main manager screen is the weekly calendar. **Employees** accepts names without
+accounts or email. **Set Up Weekly Schedule** saves selected shifts, multiple weekdays
+and staffing counts in one operation, then opens the generated first draft.
+**Advanced settings** and **Administration** hold the detailed controls.
+
+Roster records never grant authenticated access. Later invitations securely link a
+verified account to the existing employee record and preserve its shifts. Existing
+memberships and schedules are retained. [Migration and manager workflow](docs/SIMPLE-SCHEDULING.md).
 
 ## Workspace permissions
 

@@ -10,6 +10,7 @@ export function CoverageCalendar({
   week,
   timezone,
   peers,
+  carryIn = [],
   warning,
   pending,
   onAssign,
@@ -21,6 +22,7 @@ export function CoverageCalendar({
   week: string;
   timezone: string;
   peers: Shift[];
+  carryIn?: Shift[];
   warning: number;
   pending: boolean;
   onAssign: (slot: Shift, employeeId: string) => void;
@@ -50,7 +52,7 @@ export function CoverageCalendar({
         Date.parse(other.starts_at) < Date.parse(slot.ends_at) &&
         Date.parse(slot.starts_at) < Date.parse(other.ends_at),
     );
-    const projected = shifts
+    const projected = [...shifts, ...carryIn]
       .filter((other) => other.id !== slot.id && other.employee_id === employeeId)
       .concat({ ...slot, employee_id: employeeId });
     return {

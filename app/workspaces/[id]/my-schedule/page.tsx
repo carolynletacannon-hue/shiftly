@@ -57,12 +57,13 @@ export default async function Page({
       .eq("week_start", week)
       .maybeSingle(),
     db
-      .from("memberships")
-      .select("user_id,role,profiles(display_name)")
+      .from("employees")
+      .select("id,user_id,display_name")
       .eq("organization_id", id),
   ]);
   if (publicationError || rosterError)
     throw Error("Unable to load published schedule");
+  const employeeId = roster?.find(m => m.user_id === user.id)?.id;
   const timezone = publication?.timezone || org.timezone;
   const bounds = weekBounds(week, timezone);
   const [
@@ -79,7 +80,7 @@ export default async function Page({
       .from("published_shifts")
       .select("*,published_schedules(timezone)")
       .eq("organization_id", id)
-      .eq("employee_id", user.id)
+      .eq("employee_id", employeeId || "00000000-0000-0000-0000-000000000000")
       .gt("ends_at", new Date().toISOString())
       .order("starts_at")
       .limit(30),
@@ -87,18 +88,17 @@ export default async function Page({
   if (carryError || upcomingError)
     throw Error("Unable to load published shifts");
   const all = (publication?.published_shifts || []) as Shift[];
-  const shifts = team ? all : all.filter((s) => s.employee_id === user.id);
+  const shifts = team ? all : all.filter((s) => s.employee_id === employeeId);
   const carryIn = ((carry || []) as Shift[]).filter(
-    (s) => team || s.employee_id === user.id,
+    (s) => team || s.employee_id === employeeId,
   );
   const members: Member[] = (roster || [])
     .filter((m) => team || m.user_id === user.id)
     .map((m) => ({
-      id: m.user_id,
-      role: m.role,
+      id: m.id,
+      role: "employee",
       name:
-        (m.profiles as unknown as { display_name: string })?.display_name ||
-        `Team member ${m.user_id.slice(0, 6)}`,
+        m.display_name,
     }));
   return (
     <Frame>
@@ -164,7 +164,7 @@ export default async function Page({
           <strong>
             {hoursInWeek(
               [...all, ...(carry || [])].filter(
-                (s) => s.employee_id === user.id,
+                (s) => s.employee_id === employeeId,
               ),
               week,
               timezone,

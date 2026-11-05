@@ -20,7 +20,7 @@ export async function createWorkspace(form: FormData) {
       "/onboarding?message=Unable+to+create+workspace.+Check+name+and+timezone.",
     );
   }
-  redirect("/workspaces/" + id);
+  redirect("/workspaces/" + id + "/employees?setup=1");
 }
 export async function switchWorkspace(form: FormData) {
   const id = field(form, "organization_id");
@@ -70,15 +70,17 @@ async function sendInvitation(form: FormData, resending: boolean) {
   try {
     let email = resending ? "" : field(form, "email", 254);
     let role = resending ? "" : field(form, "role");
+    let employeeId: string | undefined = String(form.get("employee_id") || "") || undefined;
     const replaces = resending ? field(form, "invitation_id") : undefined;
     if (resending) {
       const { data, error } = await db.from("invitations")
-        .select("email,role").eq("organization_id", id).eq("id", replaces!).single();
+        .select("email,role,employee_id").eq("organization_id", id).eq("id", replaces!).single();
       if (error || !data) throw new Error();
       email = data.email;
       role = data.role;
+      employeeId = data.employee_id || undefined;
     }
-    result = await issueInvitation(db, { organizationId: id, email, role, replaces });
+    result = await issueInvitation(db, { organizationId: id, email, role, replaces, employeeId });
   } catch (error) {
     redirect("/workspaces/" + id + "?message=" + encodeURIComponent(
       error instanceof Error && error.message === "rate-limit"

@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
+  // TypeScript 5 exposes the compiler API; avoid spawning a separate CLI.
+  experimental: { useTypeScriptCli: false },
   async headers() {
     return [
       {
