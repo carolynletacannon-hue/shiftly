@@ -74,3 +74,7 @@ npm run dev
 `npm test` applies the actual migration to an isolated PGlite Postgres database. A minimal Auth schema simulates verified identities; the tests exercise RLS as `authenticated`/`anon`, cross-organization reads/writes, role escalation attempts, owner/manager/employee permissions, invitation email checks, expiry, revocation, reuse, and membership in multiple workplaces. Tests require no production credentials. CI also runs tests, TypeScript and the production build.
 
 Before production rollout, smoke-test the real hosted Auth integration: sign up and confirm email, sign in/out, request a password reset and follow its link, create two workspaces, switch between them, invite a second confirmed account, accept once and verify a second attempt fails. Confirm an unrelated account cannot open a workspace URL. These email-delivery checks require the configured Supabase project; the local database tests do not simulate Supabase's email service.
+
+## Deployment
+
+Shiftly deploys from the `main` branch through Vercel. The deployed site uses Supabase environment variables configured in Vercel, and changes should be reviewed before publishing.
