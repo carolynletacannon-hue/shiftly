@@ -1,9 +1,15 @@
 export type Shift = {
   id: string;
   schedule_id: string;
-  employee_id: string;
+  employee_id: string | null;
   position_id?: string | null;
   position_name?: string;
+  label?: string;
+  requirement_id?: string | null;
+  template_id?: string | null;
+  slot_ordinal?: number;
+  is_required?: boolean;
+  slot_kind?: "legacy" | "requirement" | "one_off";
   starts_at: string;
   ends_at: string;
   notes: string;
@@ -26,5 +32,14 @@ export type ShiftTemplate = {
   end_time: string;
   end_next_day: boolean;
   position_id: string | null;
+  revision: number;
+};
+export type CoverageRequirement = {
+  id: string;
+  template_id: string;
+  weekday: number;
+  position_id: string | null;
+  required_count: number;
+  is_active: boolean;
   revision: number;
 };

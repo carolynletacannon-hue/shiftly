@@ -1,14 +1,15 @@
 "use client";
+
 import {
   useRef,
   useState,
   useTransition,
+  type CSSProperties,
   type FormEvent,
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { scheduleAction } from "./actions";
-import { ScheduleCalendar } from "@/lib/scheduling/calendar";
+import { CoverageCalendar } from "@/lib/scheduling/coverage-calendar";
 import {
   addDays,
   hoursInWeek,
@@ -16,12 +17,15 @@ import {
   localToInstant,
 } from "@/lib/scheduling/time";
 import type {
+  CoverageRequirement,
   Member,
   Position,
   Schedule,
   Shift,
   ShiftTemplate,
 } from "@/lib/scheduling/types";
+import { scheduleAction } from "./actions";
+
 export function ScheduleEditor({
   orgId,
   week,
@@ -30,9 +34,11 @@ export function ScheduleEditor({
   members,
   positions,
   templates,
+  requirements,
   settings,
   carryIn,
   peers,
+  firstDay,
 }: {
   orgId: string;
   week: string;
@@ -41,29 +47,35 @@ export function ScheduleEditor({
   members: Member[];
   positions: Position[];
   templates: ShiftTemplate[];
+  requirements: CoverageRequirement[];
   settings: { weekly_hours_warning: number; revision: number } | null;
   carryIn: Shift[];
   peers: Shift[];
+  firstDay: number;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [view, setView] = useState("employees");
-  const [selection, setSelection] = useState<{
-    employee: string;
-    date: string;
-    shift?: Shift;
-    baseRevision?: number;
-  }>({ employee: members[0]?.id || "", date: week });
-  const editor = useRef<HTMLElement>(null);
   const [confirmPublish, setConfirmPublish] = useState(false);
+  const [slotEditor, setSlotEditor] = useState<{
+    date: string;
+    slot?: Shift;
+    baseRevision: number;
+  } | null>(null);
+  const editorRef = useRef<HTMLElement>(null);
   const warning = Number(settings?.weekly_hours_warning || 40);
-  const shifts = (schedule?.shifts || []).map((s) => ({
-    ...s,
+  const shifts = (schedule?.shifts || []).map((shift) => ({
+    ...shift,
     position_name:
-      positions.find((p) => p.id === s.position_id)?.name || "General",
+      positions.find((position) => position.id === shift.position_id)?.name ||
+      "General",
   }));
+  const requiredSlots = shifts.filter((shift) => shift.is_required);
+  const progressSlots = requiredSlots.length ? requiredSlots : shifts;
+  const covered = progressSlots.filter((shift) => shift.employee_id).length;
+  const unfilled = requiredSlots.filter((shift) => !shift.employee_id).length;
+
   function run(
     command: string,
     payload: Record<string, string>,
@@ -73,89 +85,79 @@ export function ScheduleEditor({
     setNotice("");
     startTransition(async () => {
       const result = await scheduleAction(orgId, command, payload, revision);
-      if (!result.ok) setError(result.error);
-      else {
-        setNotice(
-          command === "publish"
-            ? "Schedule published. Your team can now see this version. No emails were sent."
-            : "Saved to your workspace.",
-        );
-        if (["save", "delete"].includes(command))
-          setSelection({ employee: members[0]?.id || "", date: week });
-        setConfirmPublish(false);
-        router.refresh();
+      if (!result.ok) {
+        setError(result.error);
+        return;
       }
+      const messages: Record<string, string> = {
+        assign: payload.employee_id
+          ? "Assignment saved to the private draft."
+          : "Employee unassigned; the coverage slot remains in the draft.",
+        slot_save: "One-off slot saved to the private draft.",
+        delete: "One-off slot removed from the private draft.",
+        publish: "Schedule published. Employees can now see assigned shifts in this revision.",
+        requirement_save: "Coverage requirement saved for newly created weeks.",
+        requirement_delete: "Coverage requirement removed from future weeks. Existing weeks are unchanged.",
+      };
+      setNotice(messages[command] || "Saved to your workspace.");
+      if (["slot_save", "delete"].includes(command)) setSlotEditor(null);
+      setConfirmPublish(false);
+      router.refresh();
     });
   }
-  function select(employee: string, date: string, shift?: Shift) {
-    setSelection({ employee, date, shift, baseRevision: schedule?.revision });
+
+  function openEditor(date: string, slot?: Shift) {
+    if (!schedule) return;
+    setSlotEditor({ date, slot, baseRevision: schedule.revision });
     setError("");
     setTimeout(
-      () =>
-        editor.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      () => editorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
       0,
     );
   }
+
   const positionOptions = (
     <>
       <option value="">General / no position</option>
-      {positions.map((p) => (
-        <option key={p.id} value={p.id}>
-          {p.name}
+      {positions.map((position) => (
+        <option key={position.id} value={position.id}>
+          {position.name}
         </option>
       ))}
     </>
   );
-  const timeChoice = (
-    <label>
-      Repeated DST hour
-      <select name="time_choice" defaultValue="reject">
-        <option value="reject">Ask me to resolve a repeated hour</option>
-        <option value="earlier">Earlier occurrence</option>
-        <option value="later">Later occurrence</option>
-      </select>
-    </label>
-  );
-  const status = !schedule?.published_revision
-    ? "Draft · not visible to employees"
-    : schedule.published_revision === schedule.revision
-      ? "Published · draft matches live schedule"
-      : `Unpublished changes · team sees revision ${schedule.published_revision}`;
-  const reviews = members
-    .map((m) => ({
-      ...m,
+  const highHours = members
+    .map((member) => ({
+      ...member,
       hours: hoursInWeek(
-        [...shifts, ...carryIn].filter((s) => s.employee_id === m.id),
+        [...shifts, ...carryIn].filter((shift) => shift.employee_id === member.id),
         week,
         timezone,
       ),
     }))
-    .filter((m) => m.hours > warning);
+    .filter((member) => member.hours > warning);
+  const status = !schedule?.published_revision
+    ? "Private draft"
+    : schedule.published_revision === schedule.revision
+      ? "Published"
+      : "Unpublished changes";
+
   return (
-    <div aria-busy={pending}>
-      {error && (
-        <p className="notice schedule-error" role="alert">
-          {error}
-        </p>
-      )}
-      {notice && (
-        <p className="notice" role="status">
-          {notice}
-        </p>
-      )}
-      {pending && (
-        <p role="status" className="muted">
-          Saving…
-        </p>
-      )}
+    <div className="coverage-workspace" aria-busy={pending}>
+      <div className="message-stack" aria-live="polite">
+        {error && <p className="notice schedule-error" role="alert">{error}</p>}
+        {notice && <p className="notice success-notice" role="status">{notice}</p>}
+        {pending && <p className="save-status" role="status">Saving…</p>}
+      </div>
+
       {!schedule ? (
-        <section className="panel workspace-card schedule-empty">
-          <p className="eyebrow">A FRESH WEEK</p>
-          <h2>Build your team’s next schedule</h2>
+        <section className="panel coverage-empty">
+          <div className="empty-icon" aria-hidden="true">▦</div>
+          <p className="eyebrow">PRIVATE WEEKLY DRAFT</p>
+          <h2>Create this week’s coverage plan</h2>
           <p>
-            Create a private draft, assign shifts, then publish when it’s ready.
-            You can start empty or copy the previous week’s published schedule
-            (or its draft if it has never been published).
+            Shiftly will add every active recurring requirement as an empty slot.
+            You can also carry forward assignments and one-off slots from the previous week.
           </p>
           <CommandForm
             onRun={run}
@@ -163,568 +165,437 @@ export function ScheduleEditor({
             pending={pending}
             command="create"
             extra={{ week_start: week }}
+            className="draft-start-form"
           >
             <label>
               Starting point
-              <select name="copy_previous">
-                <option value="no">Empty draft</option>
-                <option value="yes">Copy previous week</option>
+              <select name="copy_previous" defaultValue="no">
+                <option value="no">Use current coverage requirements</option>
+                <option value="yes">Requirements + previous week assignments</option>
               </select>
             </label>
-            {timeChoice}
-            <button className="button primary">Create draft</button>
+            <label>
+              Repeated daylight-saving hour
+              <select name="time_choice" defaultValue="reject">
+                <option value="reject">Ask me if a copied time is ambiguous</option>
+                <option value="earlier">Use earlier occurrence</option>
+                <option value="later">Use later occurrence</option>
+              </select>
+            </label>
+            <button className="button primary">Create private draft</button>
           </CommandForm>
         </section>
       ) : (
         <>
-          <section className="panel schedule-toolbar">
-            <div>
-              <span
-                className={`schedule-badge ${schedule.published_revision === schedule.revision ? "live" : "draft"}`}
+          <section className="coverage-summary panel">
+            <div className="coverage-progress" aria-label={`${covered} of ${progressSlots.length} coverage slots filled`}>
+              <div
+                className="progress-ring"
+                style={{ "--coverage": `${progressSlots.length ? (covered / progressSlots.length) * 360 : 0}deg` } as CSSProperties}
               >
-                {status}
-              </span>
-              <p className="muted">
-                Revision {schedule.revision} · {shifts.length} shifts ·{" "}
-                {timezone}
-              </p>
+                <span>{covered}/{progressSlots.length}</span>
+              </div>
+              <div>
+                <span className={`schedule-badge ${status === "Published" ? "live" : "draft"}`}>{status}</span>
+                <h2>Weekly coverage</h2>
+                <p>
+                  {unfilled ? `${unfilled} required ${unfilled === 1 ? "slot needs" : "slots need"} an employee` : "All required slots are covered"}
+                  {" · "}{timezone}
+                </p>
+              </div>
             </div>
             <div className="schedule-tools">
-              <label>
-                Calendar view
-                <select value={view} onChange={(e) => setView(e.target.value)}>
-                  <option value="employees">By employee</option>
-                  <option value="days">By day</option>
-                </select>
-              </label>
-              <button
-                type="button"
-                className="button secondary"
-                onClick={() => window.print()}
-              >
+              <button type="button" className="button secondary" onClick={() => window.print()}>
                 Print week
               </button>
               <button
                 type="button"
                 className="button primary"
-                disabled={
-                  pending || schedule.published_revision === schedule.revision
-                }
+                disabled={pending || schedule.published_revision === schedule.revision}
                 onClick={() => setConfirmPublish(true)}
               >
-                {schedule.published_revision
-                  ? "Republish schedule"
-                  : "Publish schedule"}
+                {schedule.published_revision ? "Republish" : "Publish"}
               </button>
             </div>
           </section>
-          {reviews.length > 0 && (
+
+          {highHours.length > 0 && (
             <aside className="notice hours-review">
               <div>
                 <strong>Review weekly hours</strong>
-                <p>
-                  {reviews
-                    .map((m) => `${m.name}: ${m.hours.toFixed(1)} h`)
-                    .join(" · ")}
-                </p>
-                <p>
-                  Above your {warning} h review guideline. Overtime rules vary
-                  by employee and jurisdiction; this is a planning warning, not
-                  a payroll calculation.
-                </p>
+                <p>{highHours.map((member) => `${member.name}: ${member.hours.toFixed(1)} h`).join(" · ")}</p>
+                <p>Above the {warning}-hour planning guideline. Final payroll rules may differ.</p>
               </div>
             </aside>
           )}
+
           {confirmPublish && (
-            <section
-              className="panel workspace-card publish-review"
-              role="region"
-              aria-label="Review publication"
-            >
-              <h2>
-                {shifts.length
-                  ? "Ready to share this week?"
-                  : "Publish an empty schedule?"}
-              </h2>
-              <p>
-                {shifts.length
-                  ? `${shifts.length} shifts will replace the team’s current published week.`
-                  : "This will remove all currently published shifts for this week."}{" "}
-                Conflicts and your revision will be checked again before
-                publishing. No emails will be sent.
-              </p>
-              {reviews.length > 0 && (
-                <p className="hours-warning">
-                  Review the high-hours warning above before continuing.
+            <section className={`panel publish-review ${unfilled ? "incomplete" : ""}`} role="alertdialog" aria-labelledby="publish-title">
+              <div>
+                <p className="eyebrow">PUBLICATION REVIEW</p>
+                <h2 id="publish-title">
+                  {unfilled ? `Publish with ${unfilled} unfilled required ${unfilled === 1 ? "slot" : "slots"}?` : "Publish this covered week?"}
+                </h2>
+                <p>
+                  Assigned shifts will replace the employee-visible version. Empty slots stay private. Conflicts and the draft revision are checked again.
                 </p>
-              )}
+              </div>
               <div className="schedule-tools">
                 <button
+                  className={unfilled ? "button danger" : "button primary"}
                   disabled={pending}
-                  className="button primary"
-                  onClick={() => run("publish", { schedule_id: schedule.id })}
+                  onClick={() => run("publish", {
+                    schedule_id: schedule.id,
+                    allow_incomplete: unfilled ? "true" : "false",
+                  })}
                 >
-                  Confirm publication
+                  {unfilled ? "Confirm incomplete publication" : "Confirm publication"}
                 </button>
-                <button
-                  className="button secondary"
-                  onClick={() => setConfirmPublish(false)}
-                >
+                <button className="button secondary" onClick={() => setConfirmPublish(false)}>
                   Keep editing
                 </button>
               </div>
             </section>
           )}
-          <section className="panel">
-            <ScheduleCalendar
+
+          <section className="panel coverage-grid-panel">
+            <CoverageCalendar
               shifts={shifts}
               members={members}
               week={week}
               timezone={timezone}
-              view={view}
-              carryIn={carryIn}
+              peers={peers}
               warning={warning}
-              onCell={(id, day) => select(id, day)}
-              onShift={(s) =>
-                select(
-                  s.employee_id,
-                  localInput(s.starts_at, timezone).slice(0, 10),
-                  s,
-                )
+              pending={pending}
+              onAssign={(slot, employeeId) =>
+                run("assign", {
+                  schedule_id: schedule.id,
+                  id: slot.id,
+                  employee_id: employeeId,
+                })
               }
+              onAdd={(day) => openEditor(day)}
+              onEdit={(slot) => openEditor(localInput(slot.starts_at, timezone).slice(0, 10), slot)}
             />
           </section>
-          {!shifts.length && (
-            <p className="hint">
-              Your draft is empty. Select an employee and date above, or use the
-              shift editor below.
-            </p>
-          )}
-          <div className="schedule-editor-grid">
-            <section className="panel workspace-card" ref={editor}>
-              <h2>{selection.shift ? "Edit shift" : "Add a shift"}</h2>
+
+          {carryIn.length > 0 && (
+            <aside className="carry-in coverage-carry-in">
+              <h3>Continuing from the previous week</h3>
               <p className="muted">
-                Times are in {timezone}. For overnight shifts, set the end date
-                to the following day.
+                {carryIn.length} overnight {carryIn.length === 1 ? "shift continues" : "shifts continue"} into this week. Edit in the starting week.
               </p>
-              {selection.baseRevision !== undefined &&
-                selection.baseRevision !== schedule.revision && (
-                  <p role="alert" className="hours-warning">
-                    The draft changed since this selection. Select the shift or
-                    date again in the calendar before saving.
-                  </p>
-                )}
-              <ShiftForm
-                key={`${selection.employee}:${selection.date}:${selection.shift?.id || "new"}:${schedule.revision}`}
-                selection={selection}
+            </aside>
+          )}
+
+          {slotEditor && (
+            <section className="panel one-off-editor" ref={editorRef}>
+              <div className="editor-heading">
+                <div>
+                  <p className="eyebrow">ONE-OFF COVERAGE</p>
+                  <h2>{slotEditor.slot ? "Edit one-off slot" : "Add a one-off slot"}</h2>
+                  <p>Use this for coverage that does not repeat each week. Assignment is optional.</p>
+                </div>
+                <button className="popover-close" onClick={() => setSlotEditor(null)}>Close</button>
+              </div>
+              {slotEditor.baseRevision !== schedule.revision && (
+                <p className="inline-warning" role="alert">The draft changed. Close and reopen this slot before saving.</p>
+              )}
+              <SlotForm
+                key={`${slotEditor.date}:${slotEditor.slot?.id || "new"}:${schedule.revision}`}
+                date={slotEditor.date}
+                slot={slotEditor.slot}
                 members={members}
                 templates={templates}
-                positions={positionOptions}
+                positionOptions={positionOptions}
                 timezone={timezone}
                 week={week}
                 peers={[...shifts, ...peers]}
+                warning={warning}
                 pending={pending}
                 onSubmit={(data) =>
-                  run(
-                    "save",
-                    { ...data, schedule_id: schedule.id },
-                    selection.baseRevision ?? schedule.revision,
-                  )
+                  run("slot_save", { ...data, schedule_id: schedule.id }, slotEditor.baseRevision)
                 }
               />
-              {selection.shift && (
-                <div className="schedule-tools">
-                  <button
-                    className="button danger"
-                    disabled={pending}
-                    onClick={() =>
-                      run(
-                        "delete",
-                        {
-                          schedule_id: schedule.id,
-                          id: selection.shift!.id,
-                        },
-                        selection.baseRevision ?? schedule.revision,
-                      )
-                    }
-                  >
-                    Delete shift from draft
-                  </button>
-                  <button
-                    className="button secondary"
-                    onClick={() => select(members[0]?.id || "", week)}
-                  >
-                    Cancel edit
-                  </button>
-                </div>
+              {slotEditor.slot && (
+                <button
+                  className="button danger"
+                  disabled={pending}
+                  onClick={() => run("delete", { schedule_id: schedule.id, id: slotEditor.slot!.id }, slotEditor.baseRevision)}
+                >
+                  Remove one-off slot
+                </button>
               )}
             </section>
-            <section className="panel workspace-card">
-              <h2>Schedule settings</h2>
-              <p className="muted">
-                A review guideline, not a legal overtime rule.
-              </p>
-              <CommandForm
-                onRun={run}
-                schedule={schedule}
-                pending={pending}
-                command="settings"
-                key={`settings:${settings?.revision}`}
-                revision={settings?.revision ?? null}
-              >
-                <label>
-                  Weekly hours warning
-                  <input
-                    name="weekly_hours_warning"
-                    type="number"
-                    min="1"
-                    max="168"
-                    step="0.5"
-                    defaultValue={warning}
-                    required
-                  />
-                </label>
-                <button className="button secondary">Save guideline</button>
-              </CommandForm>
-              <h3>Positions</h3>
-              <p className="muted">
-                {positions.length
-                  ? positions.map((p) => p.name).join(" · ")
-                  : "Add Front desk, Night audit, or another position."}
-              </p>
-              <CommandForm
-                onRun={run}
-                schedule={schedule}
-                pending={pending}
-                command="position"
-              >
-                <label>
-                  New position
-                  <input name="name" maxLength={100} required />
-                </label>
-                <button className="button secondary">Add position</button>
-              </CommandForm>
-            </section>
-          </div>
-          <section className="panel workspace-card">
-            <h2>Reusable shift templates</h2>
-            <p className="muted">
-              Templates apply local times. Saving a template does not change
-              existing shifts.
-            </p>
-            <div className="template-grid">
-              {templates.map((t) => (
-                <details key={t.id} className="template-card">
+          )}
+
+          <section className="coverage-config">
+            <div className="config-heading">
+              <div>
+                <p className="eyebrow">AUTOMATION</p>
+                <h2>Recurring coverage requirements</h2>
+                <p>These rules populate newly created drafts. Existing draft and published weeks never change.</p>
+              </div>
+              <span className="count-pill">{requirements.filter((item) => item.is_active).length} active rules</span>
+            </div>
+            <div className="requirement-grid">
+              {requirements.map((requirement) => (
+                <details className="requirement-card" key={requirement.id}>
                   <summary>
-                    <strong>{t.name}</strong>
                     <span>
-                      {t.start_time.slice(0, 5)}–{t.end_time.slice(0, 5)}
-                      {t.end_next_day ? " next day" : ""}
+                      <strong>{dayName(requirement.weekday)}</strong>
+                      <small>{templates.find((template) => template.id === requirement.template_id)?.name || "Template"}</small>
+                    </span>
+                    <span className={requirement.is_active ? "rule-active" : "rule-paused"}>
+                      {requirement.required_count} needed
                     </span>
                   </summary>
                   <CommandForm
                     onRun={run}
                     schedule={schedule}
                     pending={pending}
-                    command="template_save"
-                    key={`${t.id}:${t.revision}`}
-                    extra={{ id: t.id }}
-                    revision={t.revision}
+                    command="requirement_save"
+                    revision={requirement.revision}
+                    extra={{ id: requirement.id }}
                   >
-                    <TemplateFields
-                      template={t}
+                    <RequirementFields
+                      requirement={requirement}
+                      templates={templates}
                       positionOptions={positionOptions}
+                      firstDay={firstDay}
                     />
-                    <button className="button secondary">Save template</button>
+                    <div className="schedule-tools">
+                      <button className="button secondary">Save rule</button>
+                      <button
+                        type="button"
+                        className="button danger"
+                        onClick={() => run("requirement_delete", { id: requirement.id }, requirement.revision)}
+                      >
+                        Remove rule
+                      </button>
+                    </div>
                   </CommandForm>
-                  <button
-                    className="button danger"
-                    disabled={pending}
-                    onClick={() =>
-                      run("template_delete", { id: t.id }, t.revision)
-                    }
-                  >
-                    Delete template
-                  </button>
                 </details>
               ))}
-              <details className="template-card">
-                <summary>+ New template</summary>
+              <details className="requirement-card add-rule">
+                <summary>+ Add coverage rule</summary>
                 <CommandForm
                   onRun={run}
                   schedule={schedule}
                   pending={pending}
-                  command="template_save"
+                  command="requirement_save"
                   revision={null}
                 >
-                  <TemplateFields positionOptions={positionOptions} />
-                  <button className="button secondary">Add template</button>
+                  <RequirementFields templates={templates} positionOptions={positionOptions} firstDay={firstDay} />
+                  <button className="button primary" disabled={!templates.length}>Add rule</button>
                 </CommandForm>
               </details>
             </div>
           </section>
+
+          <div className="schedule-editor-grid">
+            <section className="panel workspace-card">
+              <h2>Planning settings</h2>
+              <CommandForm onRun={run} schedule={schedule} pending={pending} command="settings" revision={settings?.revision ?? null}>
+                <label>
+                  Weekly hours review guideline
+                  <input name="weekly_hours_warning" type="number" min="1" max="168" step="0.5" defaultValue={warning} required />
+                </label>
+                <button className="button secondary">Save guideline</button>
+              </CommandForm>
+              <h3>Positions</h3>
+              <p className="muted">{positions.length ? positions.map((position) => position.name).join(" · ") : "Add a position for more precise coverage."}</p>
+              <CommandForm onRun={run} schedule={schedule} pending={pending} command="position">
+                <label>New position<input name="name" maxLength={100} required /></label>
+                <button className="button secondary">Add position</button>
+              </CommandForm>
+            </section>
+
+            <section className="panel workspace-card">
+              <h2>Shift templates</h2>
+              <p className="muted">Templates define labels and local times. The examples are editable and do not create coverage until used in a rule.</p>
+              <div className="template-grid compact-templates">
+                {templates.map((template) => (
+                  <details key={template.id} className="template-card">
+                    <summary><strong>{template.name}</strong><span>{template.start_time.slice(0, 5)}–{template.end_time.slice(0, 5)}</span></summary>
+                    <CommandForm onRun={run} schedule={schedule} pending={pending} command="template_save" revision={template.revision} extra={{ id: template.id }}>
+                      <TemplateFields template={template} positionOptions={positionOptions} />
+                      <button className="button secondary">Save template</button>
+                    </CommandForm>
+                    <button className="button danger" disabled={pending} onClick={() => run("template_delete", { id: template.id }, template.revision)}>Delete template</button>
+                  </details>
+                ))}
+                <details className="template-card">
+                  <summary>+ New template</summary>
+                  <CommandForm onRun={run} schedule={schedule} pending={pending} command="template_save" revision={null}>
+                    <TemplateFields positionOptions={positionOptions} />
+                    <button className="button secondary">Add template</button>
+                  </CommandForm>
+                </details>
+              </div>
+            </section>
+          </div>
         </>
       )}
     </div>
   );
 }
-function TemplateFields({
-  template,
+
+function dayName(day: number) {
+  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][day];
+}
+
+function RequirementFields({
+  requirement,
+  templates,
   positionOptions,
+  firstDay,
 }: {
-  template?: ShiftTemplate;
+  requirement?: CoverageRequirement;
+  templates: ShiftTemplate[];
   positionOptions: ReactNode;
+  firstDay: number;
 }) {
+  const weekdays = Array.from({ length: 7 }, (_, index) => (firstDay + index) % 7);
   return (
     <>
       <label>
-        Name
-        <input
-          name="name"
-          defaultValue={template?.name}
-          maxLength={60}
-          required
-        />
+        Weekday
+        <select name="weekday" defaultValue={requirement?.weekday ?? firstDay} required>
+          {weekdays.map((day) => <option value={day} key={day}>{dayName(day)}</option>)}
+        </select>
       </label>
       <label>
-        Start time
-        <input
-          name="start_time"
-          type="time"
-          defaultValue={template?.start_time.slice(0, 5) || "07:00"}
-          required
-        />
+        Shift template
+        <select name="template_id" defaultValue={requirement?.template_id || templates[0]?.id || ""} required>
+          {templates.map((template) => <option value={template.id} key={template.id}>{template.name} · {template.start_time.slice(0, 5)}–{template.end_time.slice(0, 5)}</option>)}
+        </select>
       </label>
+      <label>Position<select name="position_id" defaultValue={requirement?.position_id || ""}>{positionOptions}</select></label>
       <label>
-        End time
-        <input
-          name="end_time"
-          type="time"
-          defaultValue={template?.end_time.slice(0, 5) || "15:00"}
-          required
-        />
+        Employees needed
+        <input name="required_count" type="number" min="1" max="50" defaultValue={requirement?.required_count || 1} required />
       </label>
       <label className="check-label">
-        <input
-          name="end_next_day"
-          type="checkbox"
-          defaultChecked={template?.end_next_day}
-        />
-        Ends the next day
-      </label>
-      <label>
-        Position
-        <select name="position_id" defaultValue={template?.position_id || ""}>
-          {positionOptions}
-        </select>
+        <input name="is_active" type="checkbox" defaultChecked={requirement?.is_active ?? true} />
+        Active for new weeks
       </label>
     </>
   );
 }
-function ShiftForm({
-  selection,
+
+function TemplateFields({ template, positionOptions }: { template?: ShiftTemplate; positionOptions: ReactNode }) {
+  return (
+    <>
+      <label>Name<input name="name" defaultValue={template?.name} maxLength={60} required /></label>
+      <label>Start time<input name="start_time" type="time" defaultValue={template?.start_time.slice(0, 5) || "07:00"} required /></label>
+      <label>End time<input name="end_time" type="time" defaultValue={template?.end_time.slice(0, 5) || "15:00"} required /></label>
+      <label className="check-label"><input name="end_next_day" type="checkbox" defaultChecked={template?.end_next_day} />Ends the next day</label>
+      <label>Default position<select name="position_id" defaultValue={template?.position_id || ""}>{positionOptions}</select></label>
+    </>
+  );
+}
+
+function SlotForm({
+  date,
+  slot,
   members,
   templates,
-  positions,
+  positionOptions,
   timezone,
   week,
   peers,
+  warning,
   pending,
   onSubmit,
 }: {
-  selection: { employee: string; date: string; shift?: Shift };
+  date: string;
+  slot?: Shift;
   members: Member[];
   templates: ShiftTemplate[];
-  positions: ReactNode;
+  positionOptions: ReactNode;
   timezone: string;
   week: string;
   peers: Shift[];
+  warning: number;
   pending: boolean;
   onSubmit: (data: Record<string, string>) => void;
 }) {
-  const shift = selection.shift;
-  const [start, setStart] = useState(
-    shift ? localInput(shift.starts_at, timezone) : selection.date + "T07:00",
-  );
-  const [end, setEnd] = useState(
-    shift ? localInput(shift.ends_at, timezone) : selection.date + "T15:00",
-  );
-  const [employee, setEmployee] = useState(selection.employee);
-  const [position, setPosition] = useState(shift?.position_id || "");
-  const [startChoice, setStartChoice] = useState<
-    "reject" | "earlier" | "later"
-  >("reject");
-  const [endChoice, setEndChoice] = useState<"reject" | "earlier" | "later">(
-    "reject",
-  );
-  let problem = "",
-    duration = 0;
+  const [label, setLabel] = useState(slot?.label || "Custom shift");
+  const [start, setStart] = useState(slot ? localInput(slot.starts_at, timezone) : `${date}T07:00`);
+  const [end, setEnd] = useState(slot ? localInput(slot.ends_at, timezone) : `${date}T15:00`);
+  const [employee, setEmployee] = useState(slot?.employee_id || "");
+  const [position, setPosition] = useState(slot?.position_id || "");
+  const [templateId, setTemplateId] = useState(slot?.template_id || "");
+  const [startChoice, setStartChoice] = useState<"reject" | "earlier" | "later">("reject");
+  const [endChoice, setEndChoice] = useState<"reject" | "earlier" | "later">("reject");
+  let problem = "";
+  let duration = 0;
+  let projected = 0;
   try {
-    const a = localToInstant(start, timezone, startChoice),
-      b = localToInstant(end, timezone, endChoice);
-    duration = (Date.parse(b) - Date.parse(a)) / 3600000;
+    const startsAt = localToInstant(start, timezone, startChoice);
+    const endsAt = localToInstant(end, timezone, endChoice);
+    duration = (Date.parse(endsAt) - Date.parse(startsAt)) / 3600000;
     if (
-      duration <= 0 ||
-      duration > 26 ||
+      duration <= 0 || duration > 26 ||
       Date.parse(end + "Z") - Date.parse(start + "Z") > 86400000 ||
-      start.slice(0, 10) < week ||
-      start.slice(0, 10) >= addDays(week, 7) ||
+      start.slice(0, 10) < week || start.slice(0, 10) >= addDays(week, 7) ||
       end.slice(0, 10) > addDays(start.slice(0, 10), 1)
-    )
-      problem =
-        "Start must be in this week; end must follow start and be no later than the following day.";
-    else if (
-      peers.some(
-        (p) =>
-          p.id !== shift?.id &&
-          p.employee_id === employee &&
-          Date.parse(p.starts_at) < Date.parse(b) &&
-          Date.parse(a) < Date.parse(p.ends_at),
-      )
-    )
-      problem =
-        "This employee has an overlapping shift in this or an adjacent week.";
+    ) problem = "Start must be in this week; end must follow start and be no later than the following day.";
+    if (!problem && employee && peers.some((peer) =>
+      peer.id !== slot?.id && peer.employee_id === employee &&
+      Date.parse(peer.starts_at) < Date.parse(endsAt) && Date.parse(startsAt) < Date.parse(peer.ends_at)
+    )) problem = "This employee has an overlapping shift in this or an adjacent week.";
+    if (employee) {
+      projected = hoursInWeek(
+        peers.filter((peer) => peer.id !== slot?.id && peer.employee_id === employee).concat({
+          id: slot?.id || "preview",
+          schedule_id: slot?.schedule_id || "preview",
+          employee_id: employee,
+          starts_at: startsAt,
+          ends_at: endsAt,
+          notes: "",
+        }),
+        week,
+        timezone,
+      );
+    }
   } catch {
-    problem =
-      "Check the dates and DST hour selection. Skipped local hours cannot be scheduled.";
+    problem = "Check the dates and daylight-saving hour selection. Skipped local hours cannot be scheduled.";
   }
   return (
-    <form
-      className="account-form"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!problem)
-          onSubmit(
-            Object.fromEntries(new FormData(e.currentTarget)) as Record<
-              string,
-              string
-            >,
-          );
-      }}
-    >
+    <form className="slot-form" onSubmit={(event) => {
+      event.preventDefault();
+      if (!problem) onSubmit(Object.fromEntries(new FormData(event.currentTarget)) as Record<string, string>);
+    }}>
       <fieldset disabled={pending}>
-        <input type="hidden" name="id" value={shift?.id || ""} />
+        <input type="hidden" name="id" value={slot?.id || ""} />
+        <input type="hidden" name="template_id" value={templateId} />
         <label>
           Apply a template
-          <select
-            defaultValue=""
-            onChange={(e) => {
-              const t = templates.find((t) => t.id === e.target.value);
-              if (t) {
-                setStart(selection.date + "T" + t.start_time.slice(0, 5));
-                setEnd(
-                  (t.end_next_day
-                    ? addDays(selection.date, 1)
-                    : selection.date) +
-                    "T" +
-                    t.end_time.slice(0, 5),
-                );
-                setPosition(t.position_id || "");
-              }
-            }}
-          >
+          <select value={templateId} onChange={(event) => {
+            setTemplateId(event.target.value);
+            const template = templates.find((item) => item.id === event.target.value);
+            if (!template) return;
+            setLabel(template.name);
+            setStart(`${date}T${template.start_time.slice(0, 5)}`);
+            setEnd(`${template.end_next_day ? addDays(date, 1) : date}T${template.end_time.slice(0, 5)}`);
+            setPosition(template.position_id || "");
+          }}>
             <option value="">Custom times</option>
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
+            {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
           </select>
         </label>
-        <label>
-          Employee
-          <select
-            name="employee_id"
-            value={employee}
-            onChange={(e) => setEmployee(e.target.value)}
-            required
-          >
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Position
-          <select
-            name="position_id"
-            value={position}
-            onChange={(e) => setPosition(e.target.value)}
-          >
-            {positions}
-          </select>
-        </label>
-        <label>
-          Start date and time
-          <input
-            name="start_local"
-            type="datetime-local"
-            min={week + "T00:00"}
-            max={addDays(week, 6) + "T23:59"}
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-            required
-          />
-        </label>
-        <label>
-          End date and time
-          <input
-            name="end_local"
-            type="datetime-local"
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
-            required
-          />
-        </label>
-        <label>
-          Start: repeated DST hour
-          <select
-            name="start_choice"
-            value={startChoice}
-            onChange={(e) =>
-              setStartChoice(e.target.value as typeof startChoice)
-            }
-          >
-            <option value="reject">Ask me to resolve a repeated hour</option>
-            <option value="earlier">Earlier occurrence</option>
-            <option value="later">Later occurrence</option>
-          </select>
-        </label>
-        <label>
-          End: repeated DST hour
-          <select
-            name="end_choice"
-            value={endChoice}
-            onChange={(e) => setEndChoice(e.target.value as typeof endChoice)}
-          >
-            <option value="reject">Ask me to resolve a repeated hour</option>
-            <option value="earlier">Earlier occurrence</option>
-            <option value="later">Later occurrence</option>
-          </select>
-        </label>
-        <label>
-          Shift note (visible when published)
-          <textarea
-            name="notes"
-            defaultValue={shift?.notes || ""}
-            maxLength={300}
-            rows={2}
-          />
-        </label>
-        {problem ? (
-          <p role="alert" className="hours-warning">
-            {problem}
-          </p>
-        ) : (
-          <p className="muted">
-            {duration.toFixed(1)} actual hours · no overlapping shifts detected
-          </p>
-        )}
-        <button className="button primary" disabled={!!problem || !employee}>
-          {shift ? "Save draft changes" : "Add to draft"}
-        </button>
+        <label>Slot label<input name="label" value={label} onChange={(event) => setLabel(event.target.value)} maxLength={60} required /></label>
+        <label>Employee (optional)<select name="employee_id" value={employee} onChange={(event) => setEmployee(event.target.value)}><option value="">Leave unassigned</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
+        <label>Position<select name="position_id" value={position} onChange={(event) => setPosition(event.target.value)}>{positionOptions}</select></label>
+        <label>Start<input name="start_local" type="datetime-local" min={`${week}T00:00`} max={`${addDays(week, 6)}T23:59`} value={start} onChange={(event) => setStart(event.target.value)} required /></label>
+        <label>End<input name="end_local" type="datetime-local" value={end} onChange={(event) => setEnd(event.target.value)} required /></label>
+        <label>Start DST choice<select name="start_choice" value={startChoice} onChange={(event) => setStartChoice(event.target.value as typeof startChoice)}><option value="reject">Ask for repeated hour</option><option value="earlier">Earlier occurrence</option><option value="later">Later occurrence</option></select></label>
+        <label>End DST choice<select name="end_choice" value={endChoice} onChange={(event) => setEndChoice(event.target.value as typeof endChoice)}><option value="reject">Ask for repeated hour</option><option value="earlier">Earlier occurrence</option><option value="later">Later occurrence</option></select></label>
+        <label className="slot-notes">Note visible after publication<textarea name="notes" defaultValue={slot?.notes || ""} maxLength={300} rows={2} /></label>
+        {problem ? <p className="inline-warning" role="alert">{problem}</p> : <p className={projected > warning ? "inline-warning" : "muted"}>{duration.toFixed(1)} actual hours{employee ? ` · ${projected.toFixed(1)} projected weekly hours` : " · unassigned slot"}</p>}
+        <button className="button primary" disabled={!!problem}>{slot ? "Save one-off slot" : "Add one-off slot"}</button>
       </fieldset>
     </form>
   );
@@ -740,11 +611,7 @@ function CommandForm({
   className = "account-form",
   extra = {},
 }: {
-  onRun: (
-    command: string,
-    payload: Record<string, string>,
-    revision: number | null,
-  ) => void;
+  onRun: (command: string, payload: Record<string, string>, revision: number | null) => void;
   schedule: Schedule | null;
   pending: boolean;
   command: string;
@@ -754,20 +621,11 @@ function CommandForm({
   extra?: Record<string, string>;
 }) {
   return (
-    <form
-      className={className}
-      onSubmit={(e: FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        const data = Object.fromEntries(
-          new FormData(e.currentTarget),
-        ) as Record<string, string>;
-        onRun(
-          command,
-          { schedule_id: schedule?.id || "", ...extra, ...data },
-          revision,
-        );
-      }}
-    >
+    <form className={className} onSubmit={(event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(event.currentTarget)) as Record<string, string>;
+      onRun(command, { schedule_id: schedule?.id || "", ...extra, ...data }, revision);
+    }}>
       <fieldset disabled={pending}>{children}</fieldset>
     </form>
   );
