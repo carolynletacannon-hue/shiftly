@@ -5,6 +5,8 @@ import { requireWorkspace } from "@/lib/auth";
 import { updateWorkspace, invite, resend, revoke, changeRole } from "../actions";
 import { invitationUrl } from "@/lib/invitations";
 import { CopyInvitation } from "../copy-invitation";
+export const runtime = "nodejs";
+
 export default async function Page({
   params,
   searchParams,
@@ -43,7 +45,7 @@ export default async function Page({
           invitations?.some(i => i.id === saved.invitationId && !i.accepted_at && !i.revoked_at && new Date(i.expires_at).getTime() > Date.now())) {
         invitationLink = invitationUrl(saved.token) || "/invite?token=" + saved.token;
         deliveryMessage = saved.delivery === "accepted"
-          ? "Resend accepted the invitation email for delivery. You can also copy the link below."
+          ? "The email provider accepted the invitation email for delivery. You can also copy the link below."
           : saved.delivery === "failed"
             ? "Invitation created, but email acceptance could not be confirmed. Copy the link below or resend after one minute."
             : "Invitation created. Email delivery is not configured. Copy the link below to share it manually.";

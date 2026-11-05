@@ -1,29 +1,18 @@
 import "server-only";
-import { Resend } from "resend";
+import { createGmailProvider } from "./gmail";
+import type { EmailMessage, EmailProvider, EmailResult } from "./types";
+export type { EmailMessage, EmailProvider, EmailResult } from "./types";
 
-export type EmailMessage = { to: string; subject: string; html: string; text: string };
-export type EmailResult = { status: "accepted" } | { status: "unconfigured" | "failed" };
-type Transport = Pick<Resend, "emails">;
-
-// Server-only reusable entry point. Never return provider errors: they can contain
-// message contents, private links, or configuration details.
+// Invitation code is independent of the provider. Future transactional providers
+// can implement EmailProvider and be selected here without changing invitations.
 export async function sendEmail(
   message: EmailMessage,
-  idempotencyKey: string,
-  options: {
-    apiKey?: string;
-    from?: string;
-    transport?: Transport;
-  } = { apiKey: process.env.RESEND_API_KEY, from: process.env.RESEND_FROM_EMAIL },
+  deliveryKey: string,
+  provider: EmailProvider | null = createGmailProvider(),
 ): Promise<EmailResult> {
-  if (!options.apiKey?.trim() || !options.from?.trim()) return { status: "unconfigured" };
+  if (!provider) return { status: "unconfigured" };
   try {
-    const client = options.transport ?? new Resend(options.apiKey);
-    const { data, error } = await client.emails.send(
-      { ...message, from: options.from },
-      { idempotencyKey },
-    );
-    return !error && data?.id ? { status: "accepted" } : { status: "failed" };
+    return await provider.send(message, deliveryKey);
   } catch {
     return { status: "failed" };
   }

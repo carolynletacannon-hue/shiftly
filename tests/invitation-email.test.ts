@@ -4,8 +4,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { PGlite } from "@electric-sql/pglite";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
-import { sendEmail, type EmailMessage } from "../lib/email/service";
+import { type EmailMessage } from "../lib/email/service";
 import { invitationEmail } from "../lib/email/invitation";
 import { issueInvitation, invitationUrl } from "../lib/invitations";
 
@@ -24,41 +23,6 @@ test("branded HTML escapes untrusted text and includes a plain-text invitation",
   assert.equal(invitationUrl("fixture", "https://example.test/path"), "https://example.test/invite?token=fixture");
   for (const url of ["", "garbage", "javascript:alert(1)", "http://example.test", "https://user:password@example.test"])
     assert.equal(invitationUrl("fixture", url), null);
-});
-
-test("Resend acceptance requires an ID and no error; failures remain failures", async () => {
-  const transport = new Resend("fixture-key");
-  let calls = 0;
-  // Exercise the real SDK's HTTP response handling with an injected fetch.
-  for (const [status, body, expected] of [
-    [200, { id: "fixture-message" }, "accepted"],
-    [200, {}, "failed"],
-    [422, { name: "validation_error", message: "Rejected" }, "failed"],
-  ] as const) {
-    const original = globalThis.fetch;
-    globalThis.fetch = async (_url, init) => {
-      calls++;
-      const payload = JSON.parse(String(init?.body));
-      assert.equal(payload.from, "Shiftly <sender@example.test>");
-      assert.equal(payload.to, message.to);
-      assert.ok(payload.html && payload.text);
-      assert.equal(new Headers(init?.headers).get("Idempotency-Key"), "invitation/fixture");
-      return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-    };
-    try {
-      assert.equal((await sendEmail(message, "invitation/fixture", {
-        apiKey: "fixture-key", from: "Shiftly <sender@example.test>", transport,
-      })).status, expected);
-    } finally { globalThis.fetch = original; }
-  }
-  const original = globalThis.fetch;
-  globalThis.fetch = async () => { throw new Error("transport failed"); };
-  try {
-    assert.equal((await sendEmail(message, "invitation/fixture", { apiKey: "fixture-key", from: "sender@example.test", transport })).status, "failed");
-  } finally { globalThis.fetch = original; }
-  assert.equal(calls, 3);
-  for (const options of [{}, { apiKey: "fixture-key" }, { from: "sender@example.test" }])
-    assert.equal((await sendEmail(message, "fixture", options)).status, "unconfigured");
 });
 
 test("invitation delivery, resend, isolation and persistent limits on actual Postgres", async t => {
