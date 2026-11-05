@@ -41,6 +41,7 @@ export function WeeklyWizard({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [applyToWeek, setApplyToWeek] = useState(true);
   const [error, setError] = useState("");
   const [rows, setRows] = useState<Row[]>(() => {
     const active = requirements.filter((r) => r.is_active);
@@ -126,13 +127,12 @@ export function WeeklyWizard({
         e.preventDefault();
         setError("");
         startTransition(async () => {
-          const result = await saveWeeklySetup(org, rows, revision, week);
+          const result = await saveWeeklySetup(org, rows, revision, week, applyToWeek);
           if (!result.ok || result.error) {
             setError(result.error);
-            router.refresh();
             return;
           }
-          router.push(`/workspaces/${org}/schedule?week=${week}`);
+          router.push(`/workspaces/${org}/schedule?week=${week}&setupSaved=${applyToWeek ? "applied" : "future"}`);
           router.refresh();
         });
       }}
@@ -290,9 +290,14 @@ export function WeeklyWizard({
         </button>
         <section className="panel workspace-card">
           <h2>{count} shift slots each week</h2>
+          <label>Apply setup
+            <select value={applyToWeek ? "current" : "future"} onChange={(e) => setApplyToWeek(e.target.value === "current")}>
+              <option value="current">Apply to this week</option>
+              <option value="future">Future weeks only</option>
+            </select>
+          </label>
           <p>
-            Save once. Future weekly drafts will include these shifts
-            automatically. Existing schedules keep their shifts and assignments.
+            Future weekly drafts will include these shifts automatically. Applying to this week preserves assignments. Published weeks require future weeks only.
           </p>
           {!rows.length && (
             <p>
