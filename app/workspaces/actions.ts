@@ -1,9 +1,10 @@
 "use server";
-import { randomBytes, createHash } from "node:crypto";
+import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { requireUser, requireWorkspace } from "@/lib/auth";
 import { field } from "@/lib/forms";
+import { issueInvitation } from "@/lib/invitations";
 export async function createWorkspace(form: FormData) {
   const { db } = await requireUser();
   let id: string | undefined;
@@ -62,32 +63,34 @@ export async function updateWorkspace(form: FormData) {
       ),
   );
 }
-export async function invite(form: FormData) {
+async function sendInvitation(form: FormData, resending: boolean) {
   const id = field(form, "organization_id");
-  const { db, role } = await requireWorkspace(id, ["owner", "manager"]);
-  const token = randomBytes(32).toString("hex");
-  let failed = false;
+  const { db, user } = await requireWorkspace(id, ["owner", "manager"]);
+  let result: Awaited<ReturnType<typeof issueInvitation>>;
   try {
-    const desired = field(form, "role");
-    if (
-      !["employee", "manager"].includes(desired) ||
-      (role === "manager" && desired !== "employee")
-    )
-      throw new Error();
-    const { error } = await db.rpc("invite_employee", {
-      org: id,
-      invite_email: field(form, "email", 254),
-      invite_role: desired,
-      token_digest: createHash("sha256").update(token).digest("hex"),
-    });
-    failed = !!error;
-  } catch {
-    failed = true;
+    let email = resending ? "" : field(form, "email", 254);
+    let role = resending ? "" : field(form, "role");
+    const replaces = resending ? field(form, "invitation_id") : undefined;
+    if (resending) {
+      const { data, error } = await db.from("invitations")
+        .select("email,role").eq("organization_id", id).eq("id", replaces!).single();
+      if (error || !data) throw new Error();
+      email = data.email;
+      role = data.role;
+    }
+    result = await issueInvitation(db, { organizationId: id, email, role, replaces });
+  } catch (error) {
+    redirect("/workspaces/" + id + "?message=" + encodeURIComponent(
+      error instanceof Error && error.message === "rate-limit"
+        ? "Invitation limit reached. Wait at least one minute before retrying; hourly limits also apply. Existing links remain unchanged."
+        : "Unable to confirm invitation creation. Check permissions, details, and the invitation list before retrying.",
+    ));
   }
-  if (failed)
-    redirect("/workspaces/" + id + "?message=Unable+to+create+invitation");
-  // Short-lived HttpOnly cookie carries the one-time display link without putting it in a query string.
-  (await cookies()).set("shiftly-invite", JSON.stringify({ id, token }), {
+  // Preserve a usable private link even when email is unconfigured or rejected.
+  (await cookies()).set("shiftly-invite", JSON.stringify({
+    id, userId: user.id, token: result.token, invitationId: result.invitationId,
+    delivery: result.delivery,
+  }), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
@@ -95,6 +98,12 @@ export async function invite(form: FormData) {
     maxAge: 120,
   });
   redirect("/workspaces/" + id + "?invited=1");
+}
+export async function invite(form: FormData) {
+  return sendInvitation(form, false);
+}
+export async function resend(form: FormData) {
+  return sendInvitation(form, true);
 }
 export async function revoke(form: FormData) {
   const id = field(form, "organization_id");

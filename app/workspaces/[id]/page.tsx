@@ -2,7 +2,11 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { Frame, Input, Message } from "../../components";
 import { requireWorkspace } from "@/lib/auth";
-import { updateWorkspace, invite, revoke, changeRole } from "../actions";
+import { updateWorkspace, invite, resend, revoke, changeRole } from "../actions";
+import { invitationUrl } from "@/lib/invitations";
+import { CopyInvitation } from "../copy-invitation";
+export const runtime = "nodejs";
+
 export default async function Page({
   params,
   searchParams,
@@ -24,23 +28,28 @@ export default async function Page({
     ]);
   if (error || !org) throw new Error("Unable to load workspace");
   const admin = ["owner", "manager"].includes(role);
-  const { data: invitations } = admin
+  const { data: invitations, error: invitationsError } = admin
     ? await db
         .from("invitations")
         .select("id,email,role,expires_at,accepted_at,revoked_at")
         .eq("organization_id", id)
         .order("created_at", { ascending: false })
-    : { data: [] };
+    : { data: [], error: null };
   let invitationLink = "";
+  let deliveryMessage = "";
   const raw = (await cookies()).get("shiftly-invite")?.value;
   if (query.invited && raw) {
     try {
       const saved = JSON.parse(raw);
-      if (saved.id === id)
-        invitationLink =
-          (process.env.NEXT_PUBLIC_SITE_URL || "") +
-          "/invite?token=" +
-          saved.token;
+      if (admin && saved.id === id && saved.userId === user.id &&
+          invitations?.some(i => i.id === saved.invitationId && !i.accepted_at && !i.revoked_at && new Date(i.expires_at).getTime() > Date.now())) {
+        invitationLink = invitationUrl(saved.token) || "/invite?token=" + saved.token;
+        deliveryMessage = saved.delivery === "accepted"
+          ? "The email provider accepted the invitation email for delivery. You can also copy the link below."
+          : saved.delivery === "failed"
+            ? "Invitation created, but email acceptance could not be confirmed. Copy the link below or resend after one minute."
+            : "Invitation created. Email delivery is not configured. Copy the link below to share it manually.";
+      }
     } catch {}
   }
   return (
@@ -137,19 +146,14 @@ export default async function Page({
         <section className="panel workspace-card invitation-panel">
           <h2>Invite a teammate</h2>
           <p>
-            Create a private link and share it with the intended employee.
-            Shiftly does not send invitation emails yet.
+            Send a private invitation to your teammate. Invitations expire after seven days.
+            You can also copy the link to share it manually.
           </p>
           {invitationLink && (
             <div role="status" className="notice">
-              <label>
-                Copy this invitation link now (shown for two minutes)
-                <input
-                  readOnly
-                  value={invitationLink}
-                  aria-label="Invitation link"
-                />
-              </label>
+              <div><p>{deliveryMessage}</p>
+                <CopyInvitation link={invitationLink} />
+              </div>
             </div>
           )}
           <form action={invite} className="account-form">
@@ -162,9 +166,10 @@ export default async function Page({
                 {role === "owner" && <option value="manager">Manager</option>}
               </select>
             </label>
-            <button className="button primary">Create invitation link</button>
+            <button className="button primary">Send Invitation</button>
           </form>
           <h3>Invitations</h3>
+          {invitationsError && <p role="alert">Unable to load invitations. Refresh to try again.</p>}
           {invitations?.map((i) => (
             <article className="member-row" key={i.id}>
               <strong>{i.email}</strong>
@@ -178,6 +183,13 @@ export default async function Page({
                       ? "Expired"
                       : "Pending"}
               </span>
+              {!i.accepted_at && !i.revoked_at && (role === "owner" || i.role === "employee") && (
+                <form action={resend}>
+                  <input type="hidden" name="organization_id" value={id} />
+                  <input type="hidden" name="invitation_id" value={i.id} />
+                  <button className="button secondary">Resend invitation</button>
+                </form>
+              )}
               {!i.accepted_at && !i.revoked_at && (
                 <form action={revoke}>
                   <input type="hidden" name="organization_id" value={id} />

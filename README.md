@@ -42,7 +42,7 @@ In Supabase → Authentication:
 4. Keep signup confirmation and password recovery email templates using Supabase's `{{ .ConfirmationURL }}` link. The app uses PKCE and exchanges its code at `/auth/callback`; links should be opened in the browser where signup/reset began.
 5. Configure production SMTP and appropriate email rate limits before inviting real employees. Use Supabase Auth's password controls (minimum 12 characters recommended), rate limits and abuse protections. The app enforces a 12-character minimum on signup/password changes.
 
-Auth email delivery is handled by Supabase. Workspace invitations currently generate a link for an owner/manager to copy and share themselves; **Shiftly does not send invitation emails**. An invite does not provision an Auth user automatically.
+Auth confirmation and password recovery email delivery remain handled by Supabase. Workspace invitations use Gmail SMTP through Nodemailer when configured (see below). An invite does not provision an Auth user automatically.
 
 ## Workspace permissions
 
@@ -78,3 +78,103 @@ Before production rollout, smoke-test the real hosted Auth integration: sign up 
 ## Deployment
 
 Shiftly deploys from the `main` branch through Vercel. The deployed site uses Supabase environment variables configured in Vercel, and changes should be reviewed before publishing.
+
+
+## Automatic workspace invitation emails — dedicated Gmail account
+
+Invitation email delivery uses **Nodemailer and Gmail SMTP**, without a custom
+domain or Resend account. Use a dedicated free Gmail account for Shiftly rather
+than your personal email. Recipients see `Shiftly <your dedicated Gmail address>`;
+Gmail still exposes that sending address, so choose an appropriate account name.
+Supabase continues to handle signup confirmation and password recovery separately.
+
+### Gmail and Vercel setup
+
+1. Create or choose your dedicated free Gmail account. Sign in to that account,
+   enable **2-Step Verification** in Google Account → Security, then create an
+   **App password** for Shiftly at <https://myaccount.google.com/apppasswords>.
+   Use this app password, never the account's regular password. If App passwords
+   are unavailable, check Google's account eligibility/security settings; do not
+   disable TLS or enable obsolete “less secure apps” access.
+2. In Vercel → Project → Settings → Environment Variables, configure:
+
+   | Variable | Value |
+   | --- | --- |
+   | `GMAIL_USER` | The complete dedicated Gmail address, e.g. `your-dedicated-account@gmail.com`. |
+   | `GMAIL_APP_PASSWORD` | The Google app password for that same account. Formatting spaces are removed automatically. |
+   | `NEXT_PUBLIC_SITE_URL` | Existing setting: canonical HTTPS app origin used by invitation links. Local development may use `http://localhost:3000`. |
+
+   Both Gmail variables are **server-only**. Never prefix them with `NEXT_PUBLIC_`,
+   commit them, or paste them into logs. Set them separately for Production and any
+   trusted Preview environment that should send real mail. Use controlled recipients
+   in previews. Existing `RESEND_API_KEY` and `RESEND_FROM_EMAIL` variables are no
+   longer read by this implementation and may be removed.
+3. Redeploy through the existing GitHub → Vercel workflow after changing variables.
+   The workspace uses the Next.js **Node.js runtime**, which supports Nodemailer.
+   SMTP connects to `smtp.gmail.com` on **port 465 with implicit TLS**, requires TLS
+   1.2 or newer, and verifies Google's certificate. There is no plaintext fallback.
+   Connection/greeting/socket timeouts are bounded; SMTP debugging and logging are
+   disabled. No webhook, custom domain, or service-role key is required.
+4. Send an invitation to a controlled email address and confirm Gmail acceptance,
+   HTML/plain-text content, mobile rendering, and acceptance by the matching
+   confirmed account. Verify resend invalidates the previous link. Check Sent/Spam
+   and the recipient's inbox if an accepted message does not appear promptly.
+
+**No database change is required for this provider switch.** The invitation email
+migration (`20261105025631_invitation_email_delivery.sql`) has already been applied
+to this project's Supabase database. **Do not reapply it.** This change neither
+modifies migrations nor runs SQL against the hosted project. Automated database
+tests create fresh isolated databases; they do not touch Supabase.
+
+### Delivery failures and manual links
+
+Missing or invalid Gmail configuration, or a missing/invalid app origin, preserves
+the manual invitation flow. SMTP authentication failures, connection/TLS timeouts,
+recipient rejection, and Gmail quotas return a failure result without exposing raw
+SMTP errors, credentials, or invitation tokens. The UI only reports acceptance when
+Gmail confirms the intended recipient and returns a successful final SMTP response;
+this confirms provider acceptance, not inbox delivery.
+
+The latest private link is shown for two minutes and remains usable for seven days
+unless accepted or revoked. Copy it to share manually, or use **Resend invitation**
+after the cooldown. Resend generates a new token and invalidates the previous link,
+even if the new email fails. Accepted and revoked invitations cannot be resent;
+expired unused invitations can. A failed or uncertain send is never automatically
+retried: SMTP has no API-style idempotency guarantee, and a timeout after acceptance
+can leave delivery uncertain. Retrying through resend is an explicit user action.
+
+For authentication errors, check that both variables belong to the dedicated
+account, that 2-Step Verification is enabled, and that the app password is current
+(it may be revoked after account/security changes). For quota or temporary Gmail
+blocks, wait and share the manual link. Free Gmail has daily sending limits and
+anti-abuse restrictions that can change; use it for modest invitation volume and
+move to a transactional provider if volume grows. Never turn on SMTP debug logs to
+troubleshoot production invitations.
+
+### Preserved invitation security and provider extension
+
+Owners may invite employees or managers; managers may invite employees only.
+Invitations keep 256-bit tokens, stored SHA-256 digests, seven-day expiry, confirmed
+matching-email acceptance, atomic single use, organization isolation, and atomic
+resend rotation. The same Postgres limits remain: one invitation per
+workspace/recipient per 60 seconds, 20 per actor per rolling hour across workspaces,
+and 50 per workspace per rolling hour. Revoked invitations and failed email sends
+still count. Rejected rate-limit attempts do not rotate existing tokens.
+
+`lib/email/types.ts` defines the provider-neutral `EmailProvider` contract.
+`lib/email/service.ts` selects the provider; `lib/email/gmail.ts` implements Gmail.
+A future Resend or transactional provider can implement the same interface and be
+selected in the service without changing invitation generation, permissions,
+templates, or the database. The delivery key is available for providers that support
+idempotency; Gmail does not promise deduplication based on it.
+
+### Validation
+
+Run `npm install`, `npm test`, `npm run typecheck`, and `npm run build` with Node.js
+22 or later. Provider tests check TLS/certificate settings, sender/envelope identity,
+acceptance/rejection, missing credentials, authentication/timeout failures, cleanup,
+provider substitution, and real Nodemailer MIME composition of HTML/plain-text
+alternatives. SMTP is mocked, so automated tests send no email. The existing isolated
+Postgres tests still cover permissions, organization isolation, expiration, single
+use, resend rotation, cooldowns, and actor/workspace limits. After deployment, run
+the controlled-recipient smoke test above to verify your actual Gmail account.
