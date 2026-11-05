@@ -9,7 +9,7 @@ Next.js App Router, React, TypeScript, CSS; Supabase (Postgres and authenticatio
 ## Non-negotiable rules
 - Run `npm install`, `npm run typecheck` and `npm run build` in your coding environment before proposing a merge.
 - Do not introduce real guest or employee information into fixtures, logs, documentation, or code.
-- This demo has no authentication, persistence, or real approvals. Make this clear in the UI.
+- The /demo dashboard has no persistence or real approvals. Keep this clear in the UI; authenticated workspace management is separate.
 - Do not silently make demo-only actions look like real persisted approvals.
 - Implement server-side authorization before implementing actual manager actions; never trust a client-side role toggle.
 - All records and access must be scoped by organization. Enforce database row-level security when Supabase is introduced.
