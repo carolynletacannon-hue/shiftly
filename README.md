@@ -42,7 +42,7 @@ In Supabase → Authentication:
 4. Keep signup confirmation and password recovery email templates using Supabase's `{{ .ConfirmationURL }}` link. The app uses PKCE and exchanges its code at `/auth/callback`; links should be opened in the browser where signup/reset began.
 5. Configure production SMTP and appropriate email rate limits before inviting real employees. Use Supabase Auth's password controls (minimum 12 characters recommended), rate limits and abuse protections. The app enforces a 12-character minimum on signup/password changes.
 
-Auth email delivery is handled by Supabase. Workspace invitations currently generate a link for an owner/manager to copy and share themselves; **Shiftly does not send invitation emails**. An invite does not provision an Auth user automatically.
+Auth confirmation and password recovery email delivery remain handled by Supabase. Workspace invitations use Resend when configured (see below). An invite does not provision an Auth user automatically.
 
 ## Workspace permissions
 
@@ -78,3 +78,58 @@ Before production rollout, smoke-test the real hosted Auth integration: sign up 
 ## Deployment
 
 Shiftly deploys from the `main` branch through Vercel. The deployed site uses Supabase environment variables configured in Vercel, and changes should be reviewed before publishing.
+
+
+## Automatic workspace invitation emails
+
+Before merging/deploying this feature, apply **only the new**
+`supabase/migrations/20261105025631_invitation_email_delivery.sql` to the existing
+Shiftly database, using the same SQL Editor or CLI migration workflow described above.
+Do not rerun the initial migration. The new migration adds persistent limits and
+atomic token rotation; no new service-role key is required. Keep `shiftly_private`
+out of Supabase's exposed API schemas.
+
+In Vercel, set these variables for each environment where you want email delivery:
+
+| Variable | Purpose |
+| --- | --- |
+| `RESEND_API_KEY` | Server-only Resend API key; already configured in your Vercel project. |
+| `RESEND_FROM_EMAIL` | Sending address from a domain verified in your Resend account. Optionally use `Shiftly <your verified address>`. No domain is supplied by the app. |
+| `NEXT_PUBLIC_SITE_URL` | Existing setting: canonical HTTPS app origin used in invitation buttons. For local development only, `http://localhost:3000` is supported. |
+
+Redeploy after updating environment variables. Never prefix the Resend variables
+with `NEXT_PUBLIC_`. Missing API key, sending address, or valid app origin disables
+automatic email and preserves manual links. Test previews should use their own
+trusted origin and test credentials/recipients. No Resend webhook is required.
+
+Owners and managers can **Send Invitation**, **Resend invitation**, revoke, or copy
+the freshly generated link. Owners can invite employees and managers; managers can
+invite employees only. Resend uses the stored recipient and role, issues a fresh
+256-bit token with a fresh seven-day expiry, and atomically revokes prior unused
+invitations for that recipient in the workspace. Accepted and revoked invitations
+cannot be resent; expired unused invitations can. A manager cannot replace an
+outstanding manager invitation, even by requesting a lower role.
+
+Limits are enforced in Postgres for both new and legacy invitation RPCs: one new
+invitation per workspace/recipient per 60 seconds, 20 per actor per rolling hour
+across workspaces, and 50 per workspace per rolling hour. Revoked invitations and
+failed email attempts still count. Transaction locks serialize competing requests;
+rejected attempts leave existing links unchanged.
+
+A successful notice means **Resend accepted the message**, not that it reached the
+recipient's inbox. Provider rejection or an uncertain network result never reports
+success. The invitation remains usable and its link is shown for two minutes; copy
+it then, or resend after the cooldown to obtain a new link. Raw tokens are never
+stored in Postgres or logged. The send uses an invitation-specific idempotency key.
+Email and database writes cannot be one transaction: a process interruption can
+leave an unsent invitation, recoverable using resend. Resending also invalidates a
+previous link even when the new email fails, so use the latest manual link.
+
+Validation includes isolated Postgres tests applying both migrations and SDK tests
+with mocked HTTP responses (acceptance, rejection, malformed response, and network
+failure). No real recipients receive mail during automated tests. After deployment,
+send to a controlled address, verify HTML/text and mobile rendering, accept with
+the matching confirmed account, then test resend invalidates the original link.
+Also test missing email configuration and an invalid sender in a preview environment.
+The existing GitHub checks run tests, TypeScript, and a production build; Vercel
+continues to deploy from `main` after PR review and merge.
