@@ -67,10 +67,15 @@ export default async function Page({
         </Link>
       </div>
       <Message text={query.message} />
-      <div className="demo-banner">
-        Your workspace and team access are saved securely. Scheduling and time
-        off are still a fictional <Link href="/demo">demo</Link>.
-      </div>
+      <nav className="schedule-tabs" aria-label="Workspace sections">
+        {admin && (
+          <Link href={`/workspaces/${id}/schedule`}>Schedule editor</Link>
+        )}
+        <Link href={`/workspaces/${id}/my-schedule`}>My Schedule</Link>
+        <Link href={`/workspaces/${id}/my-schedule?view=team`}>
+          Team schedule
+        </Link>
+      </nav>
       <div className="two-col">
         <section className="panel workspace-card">
           <h2>Business settings</h2>

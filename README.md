@@ -1,10 +1,10 @@
 # Shiftly
 
-A mobile-first scheduling product for small teams. Phase 1 provides Supabase email/password authentication and multiple business workspaces. The original dashboard remains at `/demo`: its fictional schedules, time-off requests and approvals are local demonstrations only. No scheduling or time-off tables exist yet.
+A mobile-first scheduling product for small teams. Shiftly provides Supabase authentication, multi-business workspaces, secure invitations, and persistent manager scheduling with explicit publishing and employee views. The original fictional dashboard remains at `/demo`, separate from real workspace schedules. Time-off requests, swaps, and calendar subscriptions are future phases.
 
 ## Deploy with GitHub and Vercel
 
-1. Apply the migration below to your Supabase project **before using the new screens**.
+1. For an existing Shiftly installation, apply **only** the new Phase 2 migration `supabase/migrations/20261105035217_phase2_scheduling.sql` before merging/deploying scheduling. Do not rerun existing migrations. See [Phase 2 deployment and workflow](docs/PHASE2-SCHEDULING.md). The initial database setup below is for new installations only.
 2. In Vercel → Project → Settings → Environment Variables, configure:
    - `NEXT_PUBLIC_SUPABASE_URL`: your project's URL (already configured).
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: your project's publishable key (already configured).
@@ -44,6 +44,19 @@ In Supabase → Authentication:
 
 Auth confirmation and password recovery email delivery remain handled by Supabase. Workspace invitations use Gmail SMTP through Nodemailer when configured (see below). An invite does not provision an Auth user automatically.
 
+## Persistent scheduling (Phase 2)
+
+Owners and managers open **Schedule editor** from their workspace to create a
+private weekly draft, use shift templates/positions, assign/edit/delete shifts,
+copy the previous week, review hours/conflicts, and explicitly publish or republish.
+Employees use **My Schedule** and **Team schedule**, which only read published
+snapshots. Draft changes never silently change the live schedule or send email.
+
+Apply only [`20261105035217_phase2_scheduling.sql`](supabase/migrations/20261105035217_phase2_scheduling.sql)
+before deploying this phase. Existing accounts and workspaces are preserved.
+[Full migration, workflow, security, DST and validation details](docs/PHASE2-SCHEDULING.md).
+No new Vercel environment variables are required for scheduling.
+
 ## Workspace permissions
 
 | Action | Owner | Manager | Employee |
@@ -54,6 +67,8 @@ Auth confirmation and password recovery email delivery remain handled by Supabas
 | Invite employees / revoke invitations | Yes | Yes | No |
 | Invite managers / change employee-manager roles | Yes | No | No |
 | Assign owner or change own role | No | No | No |
+| Create/edit drafts, templates, positions; publish | Yes | Yes | No |
+| Read own organization's published team schedule | Yes | Yes | Yes |
 
 Any signed-in user can create another workspace and becomes its owner. A workspace switch is checked against the authenticated user's membership on the server; the remembered workspace cookie never grants access. Direct membership writes are denied. Owner transfer/deletion and member removal are outside this phase. The positions table/API is ready; the current screen lists positions only.
 
