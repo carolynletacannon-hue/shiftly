@@ -10,11 +10,14 @@
 - Organizations, invitations, manager and employee membership
 - Row-level security and account deactivation
 
-## Phase 2 — Scheduling
-- Recurring shift templates
-- Manager-only draft schedule editor
-- Conflicts, approved absences, overlapping shifts
-- Publish/republish with audit history
+## Phase 2 — Scheduling (implemented)
+- Persistent manager-only weekly draft editor, employee/day views and previous-week copy
+- Reusable morning/evening/overnight templates and configurable positions
+- Overlap validation, workload warnings, UTC instants and IANA/DST handling
+- Explicit publish/republish snapshots, publication events and revision checks
+- Employee My Schedule and published team views
+- Approved absence integration remains deferred to Phase 3
+- See [deployment and validation](PHASE2-SCHEDULING.md)
 
 ## Phase 3 — Requests
 - Time off request submission/approval/denial
