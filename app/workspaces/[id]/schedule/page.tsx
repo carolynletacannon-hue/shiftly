@@ -10,10 +10,12 @@ import type {
 } from "@/lib/scheduling/types";
 import { ScheduleEditor } from "./editor";
 import { WeekNavigation } from "@/lib/scheduling/week-navigation";
-export default async function Page({
+export async function SchedulingPage({
   params,
   searchParams,
+  advanced = false,
 }: {
+  advanced?: boolean;
   params: Promise<{ id: string }>;
   searchParams: Promise<{ week?: string }>;
 }) {
@@ -60,8 +62,8 @@ export default async function Page({
       .eq("week_start", week)
       .maybeSingle(),
     db
-      .from("memberships")
-      .select("user_id,role,profiles(display_name)")
+      .from("employees")
+      .select("id,display_name,user_id")
       .eq("organization_id", id),
     db
       .from("positions")
@@ -135,25 +137,26 @@ export default async function Page({
     ),
   ] as Shift[];
   const members: Member[] = (roster || []).map((m) => ({
-    id: m.user_id,
-    role: m.role,
+    id: m.id,
+    role: "employee",
     name:
-      (m.profiles as unknown as { display_name: string })?.display_name ||
-      `Team member ${m.user_id.slice(0, 6)}`,
+      m.display_name,
   }));
   return (
     <Frame>
       <div className="page-heading">
         <div>
           <p className="eyebrow">{org.name} · MANAGER SCHEDULE</p>
-          <h1>Cover every shift with confidence</h1>
+          <h1>{advanced ? "Advanced scheduling settings" : "Weekly schedule"}</h1>
           <p className="subtitle">
             See what the week needs, fill open slots, then publish when it’s ready.
           </p>
         </div>
         <div className="schedule-tools">
-          <Link className="button secondary" href={`/workspaces/${id}`}>
-            Workspace
+          <Link className="button secondary" href={`/workspaces/${id}/weekly-setup`}>Set Up Weekly Schedule</Link>
+          <Link className="button secondary" href={`/workspaces/${id}/schedule${advanced ? "" : "/settings"}`}>{advanced ? "Weekly calendar" : "Advanced settings"}</Link>
+          <Link className="button secondary" href={`/workspaces/${id}/employees`}>
+            Employees
           </Link>
           <Link
             className="button secondary"
@@ -174,6 +177,7 @@ export default async function Page({
       />
       <ScheduleEditor
         key={`${id}:${week}`}
+        advanced={advanced}
         orgId={id}
         week={week}
         timezone={timezone}
@@ -190,3 +194,6 @@ export default async function Page({
     </Frame>
   );
 }
+
+
+export default SchedulingPage;

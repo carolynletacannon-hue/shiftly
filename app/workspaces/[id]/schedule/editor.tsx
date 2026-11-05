@@ -28,6 +28,7 @@ import { scheduleAction } from "./actions";
 
 export function ScheduleEditor({
   orgId,
+  advanced = false,
   week,
   timezone,
   schedule,
@@ -40,6 +41,7 @@ export function ScheduleEditor({
   peers,
   firstDay,
 }: {
+  advanced?: boolean;
   orgId: string;
   week: string;
   timezone: string;
@@ -167,6 +169,7 @@ export function ScheduleEditor({
             extra={{ week_start: week }}
             className="draft-start-form"
           >
+            <details className="draft-options"><summary>Copy assignments from last week (optional)</summary>
             <label>
               Starting point
               <select name="copy_previous" defaultValue="no">
@@ -182,11 +185,13 @@ export function ScheduleEditor({
                 <option value="later">Use later occurrence</option>
               </select>
             </label>
-            <button className="button primary">Create private draft</button>
+            </details>
+            <button className="button primary">Create weekly draft</button>
           </CommandForm>
         </section>
       ) : (
         <>
+          {!advanced && <>
           <section className="coverage-summary panel">
             <div className="coverage-progress" aria-label={`${covered} of ${progressSlots.length} coverage slots filled`}>
               <div
@@ -219,6 +224,9 @@ export function ScheduleEditor({
             </div>
           </section>
 
+          <section className="panel workspace-card weekly-hours"><h2>Employee hours this week</h2>
+            <div className="hours-list">{members.map(member => <p key={member.id}><strong>{member.name}</strong> <span>{hoursInWeek([...shifts,...carryIn].filter(s=>s.employee_id===member.id),week,timezone).toFixed(1)} h</span></p>)}</div>
+          </section>
           {highHours.length > 0 && (
             <aside className="notice hours-review">
               <div>
@@ -266,6 +274,7 @@ export function ScheduleEditor({
               timezone={timezone}
               peers={peers}
               warning={warning}
+              carryIn={carryIn}
               pending={pending}
               onAssign={(slot, employeeId) =>
                 run("assign", {
@@ -329,6 +338,8 @@ export function ScheduleEditor({
             </section>
           )}
 
+          </>}
+          {advanced && <>
           <section className="coverage-config">
             <div className="config-heading">
               <div>
@@ -435,6 +446,7 @@ export function ScheduleEditor({
               </div>
             </section>
           </div>
+          </>}
         </>
       )}
     </div>

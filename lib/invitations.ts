@@ -15,7 +15,7 @@ export function invitationUrl(token: string, siteUrl = process.env.NEXT_PUBLIC_S
 }
 
 export async function issueInvitation(db: SupabaseClient, input: {
-  organizationId: string; email: string; role: string; replaces?: string;
+  organizationId: string; email: string; role: string; replaces?: string; employeeId?: string;
 }, deliver = sendEmail) {
   const { data: org, error: orgError } = await db.from("organizations")
     .select("name").eq("id", input.organizationId).single();
@@ -23,11 +23,16 @@ export async function issueInvitation(db: SupabaseClient, input: {
   const email = input.email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) throw new Error("Invalid email");
   const token = randomBytes(32).toString("hex");
-  const { data: invitationId, error } = await db.rpc("issue_invitation", {
-    org: input.organizationId, invite_email: email, invite_role: input.role,
-    token_digest: createHash("sha256").update(token).digest("hex"),
-    replaces: input.replaces ?? null,
-  });
+  const { data: invitationId, error } = input.employeeId
+    ? await db.rpc("issue_roster_invitation", {
+        org: input.organizationId, employee: input.employeeId, invite_email: email,
+        token_digest: createHash("sha256").update(token).digest("hex"),
+      })
+    : await db.rpc("issue_invitation", {
+        org: input.organizationId, invite_email: email, invite_role: input.role,
+        token_digest: createHash("sha256").update(token).digest("hex"),
+        replaces: input.replaces ?? null,
+      });
   if (error || !invitationId) {
     // Use only our known database error, never reflect raw database messages.
     throw new Error(error?.message === "Invitation rate limit exceeded" ? "rate-limit" : "Unable to create invitation");
