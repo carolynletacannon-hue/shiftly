@@ -17,7 +17,7 @@ export async function SchedulingPage({
 }: {
   advanced?: boolean;
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ week?: string }>;
+  searchParams: Promise<{ week?: string; setupSaved?: string }>;
 }) {
   const { id } = await params;
   const { db } = await requireWorkspace(id, ["owner", "manager"]);
@@ -27,7 +27,7 @@ export async function SchedulingPage({
     .eq("id", id)
     .single();
   if (orgError || !org) throw Error("Unable to load workspace");
-  const requested = (await searchParams).week;
+  const { week: requested, setupSaved } = await searchParams;
   let week = validWeek(
     requested,
     org.timezone,
@@ -144,6 +144,7 @@ export async function SchedulingPage({
   }));
   return (
     <Frame>
+      {setupSaved && <p className="notice" role="status">{setupSaved === "applied" ? "Weekly setup saved. This week’s shifts are ready for assignment." : "Weekly setup saved for future weeks. This week is unchanged."}</p>}
       <div className="page-heading">
         <div>
           <p className="eyebrow">{org.name} · MANAGER SCHEDULE</p>

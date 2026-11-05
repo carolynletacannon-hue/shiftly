@@ -26,7 +26,7 @@ The migration runs in one transaction:
 - Replaces only the assignment foreign keys with same-business roster foreign keys. Existing draft/published `employee_id`, shift IDs, times, notes, revisions and snapshots stay unchanged.
 - Adds nullable invitation targets, tenant-scoped references, RLS, restricted column grants and private RPC implementations. Old invitations remain usable with their original verified-email semantics.
 - Adds a membership trigger to create roster records for future ordinary invitations/new owners. Targeted invitations link before adding membership, avoiding duplicate roster entries.
-- Adds versioned atomic weekly setup. Saving pauses old requirements rather than removing records referenced by saved shifts. Nothing regenerates existing weeks. Creating a new draft continues through the existing validated, locked, revision-aware scheduling command.
+- Adds versioned atomic weekly setup. Saving pauses old requirements rather than removing records referenced by saved shifts. Weekly setup can reconcile an existing unpublished draft when Apply to this week is selected (the default). Matching slots retain their IDs and assignments; obsolete empty recurring slots are removed, and unmatched assigned slots become one-off shifts. Published weeks require future weeks only. Saving and applying are one transaction under the existing organization lock. Creating a new draft continues through the existing validated, locked, revision-aware scheduling command.
 
 Check row counts and assignments before/after:
 
@@ -66,3 +66,8 @@ Next uses the installed TypeScript 5 compiler API for its build check; this avoi
 Tests cover pre-existing memberships and draft/published assignments across migration; placeholder creation, assignment, totals, unassignment and publication; 21-rule bulk generation; atomic invalid-input rollback and stale configuration; verified linking, mismatched/unverified email, token replay, duplicate links, tenant isolation, anonymous/employee denials; existing time, overlap, DST, publish, revisions, invitation throttling and email delivery behavior.
 
 No live Auth/browser end-to-end session was available. Before merge, verify onboarding, mobile checkbox/dropdown behavior, printing and authenticated page loading against the migrated staging/target database.
+
+
+Weekly setup repair validation: `npm test` includes database integration tests for 21 rules/slots, existing empty drafts, assigned and unassigned reconciliation, custom-template name reuse, repeat saves, stale setup/calendar revisions, rollback, roster-only assignment, publication protection, and tenant/anonymous authorization. The organization lock serializes this RPC with assignment, configuration and publishing commands; setup revision compare-and-swap rejects competing saves from the same revision. The row trigger continues to advance the setup revision for every requirement edit; callers must treat revisions as opaque rather than expecting a single increment. PGlite tests exercise revision conflicts through queued calls; they do not substitute for a multi-connection production concurrency test.
+
+Deploy the additive `reconcile_weekly_setup` migration before deploying the application. No database reset or backfill is required. The three-argument RPC remains compatible for existing callers.
