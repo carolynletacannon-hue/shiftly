@@ -4,7 +4,7 @@ A mobile-first scheduling product for small teams. Shiftly provides Supabase aut
 
 ## Deploy with GitHub and Vercel
 
-1. For an existing Shiftly installation, apply **only** the new Phase 2 migration `supabase/migrations/20261105035217_phase2_scheduling.sql` before merging/deploying scheduling. Do not rerun existing migrations. See [Phase 2 deployment and workflow](docs/PHASE2-SCHEDULING.md). The initial database setup below is for new installations only.
+1. For an existing Phase 2 Shiftly installation, apply **only** `supabase/migrations/20261105060000_coverage_scheduling.sql` before merging or deploying this release. Do not rerun existing migrations. See [coverage scheduling migration and smoke-test instructions](docs/COVERAGE-SCHEDULING.md). The initial database setup below is for new installations only.
 2. In Vercel → Project → Settings → Environment Variables, configure:
    - `NEXT_PUBLIC_SUPABASE_URL`: your project's URL (already configured).
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: your project's publishable key (already configured).
@@ -56,6 +56,19 @@ Apply only [`20261105035217_phase2_scheduling.sql`](supabase/migrations/20261105
 before deploying this phase. Existing accounts and workspaces are preserved.
 [Full migration, workflow, security, DST and validation details](docs/PHASE2-SCHEDULING.md).
 No new Vercel environment variables are required for scheduling.
+
+## Coverage-first manager scheduling
+
+Managers schedule against persistent coverage slots organized Sunday–Saturday or
+Monday–Sunday from the workspace setting. Recurring requirements combine an
+editable shift template, weekday, position, and employee count; new private drafts
+generate those required slots automatically. Assignment, reassignment, and
+unassignment happen in the weekly grid, and empty required slots remain intact.
+
+Apply only [`20261105060000_coverage_scheduling.sql`](supabase/migrations/20261105060000_coverage_scheduling.sql)
+to an existing Phase 2 database before deploying this UI. Existing drafts and
+published schedules are preserved and never regenerated. See the
+[exact migration order and rollout checks](docs/COVERAGE-SCHEDULING.md).
 
 ## Workspace permissions
 

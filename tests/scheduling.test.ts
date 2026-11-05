@@ -655,6 +655,191 @@ test("persistent scheduling authorization, publication and concurrency on Postgr
       },
     );
     await t.test(
+      "coverage requirements generate persistent slots with protected assignments and publication",
+      async () => {
+        await as(1);
+        const before = (
+          await value<{ count: number }>(
+            "select count(*)::integer as count from public.shifts where schedule_id=$1",
+            [schedule.id],
+          )
+        ).count;
+        const templateRows = (
+          await db.query<{ id: string; name: string }>(
+            "select id,name from public.shift_templates where organization_id=$1 and name in ('Morning','Evening') order by name",
+            [org],
+          )
+        ).rows;
+        const morning = templateRows.find((row) => row.name === "Morning")!;
+        const evening = templateRows.find((row) => row.name === "Evening")!;
+        const housekeeping = (
+          await command(org, "position", { name: "Housekeeping" })
+        ).id;
+        const morningRule = await command(org, "requirement_save", {
+          template_id: morning.id,
+          weekday: 0,
+          position_id: position,
+          required_count: 2,
+          is_active: true,
+        });
+        await command(org, "requirement_save", {
+          template_id: evening.id,
+          weekday: 0,
+          position_id: housekeeping,
+          required_count: 1,
+          is_active: true,
+        });
+        assert.equal(
+          (
+            await value<{ count: number }>(
+              "select count(*)::integer as count from public.shifts where schedule_id=$1",
+              [schedule.id],
+            )
+          ).count,
+          before,
+          "new requirements never modify an existing draft",
+        );
+
+        const coverage = await command(org, "create", {
+          week_start: "2026-12-06",
+        });
+        let coverageRevision = coverage.revision;
+        const slots = (
+          await db.query<{
+            id: string;
+            requirement_id: string;
+            position_id: string;
+            slot_ordinal: number;
+            employee_id: string | null;
+          }>(
+            "select id,requirement_id,position_id,slot_ordinal,employee_id from public.shifts where schedule_id=$1 order by starts_at,slot_ordinal",
+            [coverage.id],
+          )
+        ).rows;
+        assert.equal(slots.length, 3);
+        assert.equal(slots.filter((slot) => slot.requirement_id === morningRule.id).length, 2);
+        assert.deepEqual(new Set(slots.map((slot) => slot.position_id)), new Set([position, housekeeping]));
+        assert.ok(slots.every((slot) => slot.employee_id === null));
+
+        await as(2);
+        assert.equal(
+          (
+            await db.query(
+              "select * from public.coverage_requirements where organization_id=$1",
+              [org],
+            )
+          ).rows.length,
+          0,
+        );
+        await assert.rejects(
+          command(org, "assign", {
+            schedule_id: coverage.id,
+            id: slots[0].id,
+            employee_id: ids[2],
+          }, coverageRevision),
+          /permission denied/,
+        );
+
+        await as(1);
+        coverageRevision = (
+          await command(org, "assign", {
+            schedule_id: coverage.id,
+            id: slots[0].id,
+            employee_id: ids[2],
+          }, coverageRevision)
+        ).revision;
+        coverageRevision = (
+          await command(org, "assign", {
+            schedule_id: coverage.id,
+            id: slots[1].id,
+            employee_id: ids[1],
+          }, coverageRevision)
+        ).revision;
+        await assert.rejects(
+          command(org, "assign", {
+            schedule_id: coverage.id,
+            id: slots[1].id,
+            employee_id: ids[2],
+          }, coverageRevision),
+          /overlapping/,
+        );
+        await assert.rejects(
+          command(org, "delete", {
+            schedule_id: coverage.id,
+            id: slots[0].id,
+          }, coverageRevision),
+          /Required slots cannot/,
+        );
+
+        coverageRevision = (
+          await command(org, "assign", {
+            schedule_id: coverage.id,
+            id: slots[0].id,
+            employee_id: "",
+          }, coverageRevision)
+        ).revision;
+        assert.equal(
+          (
+            await value<{ count: number }>(
+              "select count(*)::integer as count from public.shifts where schedule_id=$1",
+              [coverage.id],
+            )
+          ).count,
+          3,
+          "unassigning preserves the slot",
+        );
+        coverageRevision = (
+          await command(org, "assign", {
+            schedule_id: coverage.id,
+            id: slots[0].id,
+            employee_id: ids[2],
+          }, coverageRevision)
+        ).revision;
+        const counts = await value<{ total: number; covered: number }>(
+          "select count(*)::integer as total,count(employee_id)::integer as covered from public.shifts where schedule_id=$1 and is_required",
+          [coverage.id],
+        );
+        assert.deepEqual(counts, { total: 3, covered: 2 });
+        await assert.rejects(
+          command(org, "publish", { schedule_id: coverage.id }, coverageRevision),
+          /Unfilled required slots/,
+        );
+        await command(
+          org,
+          "publish",
+          { schedule_id: coverage.id, allow_incomplete: true },
+          coverageRevision,
+        );
+        assert.equal(
+          (
+            await value<{ count: number }>(
+              "select count(*)::integer as count from public.published_shifts where schedule_id=$1",
+              [coverage.id],
+            )
+          ).count,
+          2,
+          "only assigned slots are employee-visible",
+        );
+        await as(2);
+        assert.equal(
+          (
+            await db.query(
+              "select * from public.published_shifts where schedule_id=$1",
+              [coverage.id],
+            )
+          ).rows.length,
+          2,
+        );
+        assert.equal(
+          (
+            await db.query("select * from public.schedules where id=$1", [coverage.id])
+          ).rows.length,
+          0,
+        );
+        await as(1);
+      },
+    );
+    await t.test(
       "every new table has RLS and scheduling functions have narrow grants",
       async () => {
         await db.exec("reset role");
@@ -666,6 +851,7 @@ test("persistent scheduling authorization, publication and concurrency on Postgr
           "shift_templates",
           "schedule_settings",
           "schedule_events",
+          "coverage_requirements",
         ];
         for (const table of tables) {
           const row = await value<{ relrowsecurity: boolean }>(

@@ -5,11 +5,13 @@ export function WeekNavigation({
   week,
   employee = false,
   view = "mine",
+  todayWeek,
 }: {
   id: string;
   week: string;
   employee?: boolean;
   view?: string;
+  todayWeek?: string;
 }) {
   const base = `/workspaces/${id}/${employee ? "my-schedule" : "schedule"}`;
   return (
@@ -20,6 +22,11 @@ export function WeekNavigation({
       >
         ← Previous
       </Link>
+      {todayWeek && week !== todayWeek && (
+        <Link className="button secondary" href={`${base}?week=${todayWeek}&view=${view}`}>
+          Today
+        </Link>
+      )}
       <form key={week} action={base}>
         <label>
           Week containing

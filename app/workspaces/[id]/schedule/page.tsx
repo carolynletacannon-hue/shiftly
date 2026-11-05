@@ -2,7 +2,12 @@ import Link from "next/link";
 import { Frame } from "@/app/components";
 import { requireWorkspace } from "@/lib/auth";
 import { addDays, validWeek, weekBounds } from "@/lib/scheduling/time";
-import type { Member, Schedule, Shift } from "@/lib/scheduling/types";
+import type {
+  CoverageRequirement,
+  Member,
+  Schedule,
+  Shift,
+} from "@/lib/scheduling/types";
 import { ScheduleEditor } from "./editor";
 import { WeekNavigation } from "@/lib/scheduling/week-navigation";
 export default async function Page({
@@ -46,6 +51,7 @@ export default async function Page({
     { data: positions, error: positionError },
     { data: templates, error: templateError },
     { data: settings, error: settingsError },
+    { data: requirements, error: requirementError },
   ] = await Promise.all([
     db
       .from("schedules")
@@ -72,14 +78,24 @@ export default async function Page({
       .select("weekly_hours_warning,revision")
       .eq("organization_id", id)
       .maybeSingle(),
+    db
+      .from("coverage_requirements")
+      .select("*")
+      .eq("organization_id", id)
+      .order("weekday"),
   ]);
   if (
-    [draftError, rosterError, positionError, templateError, settingsError].some(
-      Boolean,
-    )
+    [
+      draftError,
+      rosterError,
+      positionError,
+      templateError,
+      settingsError,
+      requirementError,
+    ].some(Boolean)
   )
     throw Error(
-      "Unable to load scheduling data. Check the Phase 2 migration and retry.",
+      "Unable to load scheduling data. Check the Phase 2 and coverage migrations, then retry.",
     );
   const timezone = draft?.timezone || org.timezone;
   const bounds = weekBounds(week, timezone);
@@ -130,9 +146,9 @@ export default async function Page({
       <div className="page-heading">
         <div>
           <p className="eyebrow">{org.name} · MANAGER SCHEDULE</p>
-          <h1>Plan a smoother week</h1>
+          <h1>Cover every shift with confidence</h1>
           <p className="subtitle">
-            Private drafts. Clear shifts. Publish when you’re ready.
+            See what the week needs, fill open slots, then publish when it’s ready.
           </p>
         </div>
         <div className="schedule-tools">
@@ -147,7 +163,15 @@ export default async function Page({
           </Link>
         </div>
       </div>
-      <WeekNavigation id={id} week={week} />
+      <WeekNavigation
+        id={id}
+        week={week}
+        todayWeek={validWeek(
+          undefined,
+          org.timezone,
+          org.settings.week_starts_on ?? 0,
+        )}
+      />
       <ScheduleEditor
         key={`${id}:${week}`}
         orgId={id}
@@ -157,7 +181,9 @@ export default async function Page({
         members={members}
         positions={positions || []}
         templates={templates || []}
+        requirements={(requirements || []) as CoverageRequirement[]}
         settings={settings}
+        firstDay={org.settings.week_starts_on ?? 0}
         carryIn={carryIn}
         peers={peers}
       />
