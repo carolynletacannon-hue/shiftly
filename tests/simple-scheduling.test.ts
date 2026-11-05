@@ -13,7 +13,7 @@ test("additive roster migration, bulk setup and verified invitation linking", as
   const dir = new URL("../supabase/migrations/", import.meta.url);
   const files = (await readdir(dir)).filter((f) => f.endsWith(".sql")).sort();
   const migration = files.find((f) => f.includes("simple_weekly"))!;
-  for (const f of files.filter((f) => f !== migration))
+  for (const f of files.filter((f) => f < migration))
     await db.exec(await readFile(new URL(f, dir), "utf8"));
   const ids = Array.from(
     { length: 5 },
@@ -87,6 +87,8 @@ test("additive roster migration, bulk setup and verified invitation linking", as
     (await db.query("select * from public.published_shifts")).rows,
     publishedBefore,
   );
+  for (const f of files.filter((f) => f > migration))
+    await db.exec(await readFile(new URL(f, dir), "utf8"));
   await as(0);
   let placeholder: string;
   let draft: { id: string; revision: number };
