@@ -72,7 +72,7 @@ export default async function Page({
   if (draftError || publishedError)
     throw Error("Unable to check scheduled assignments");
   return (
-    <Frame>
+    <Frame workspace={{ id, role, name: org.name }}>
       <div className="page-heading">
         <div>
           <p className="eyebrow">{org.name}</p>

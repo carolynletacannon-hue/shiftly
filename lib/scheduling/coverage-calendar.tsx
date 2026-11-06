@@ -1,33 +1,40 @@
 "use client";
-
-import { useEffect, useState } from "react";
-import { addDays, hoursInWeek, localDate, localToInstant, shiftLabel } from "./time";
-import type { TimeOff, Availability } from "../time-off/types";
 import { timeOffConflict, availabilityWarning } from "../time-off/conflicts";
+import type { TimeOff, Availability } from "../time-off/types";
+import { useState } from "react";
+import {
+  addDays,
+  hoursInWeek,
+  localDate,
+  localToInstant,
+  shiftLabel,
+} from "./time";
+import { groupShifts } from "./groups";
 import type { Member, Shift } from "./types";
-
 export function CoverageCalendar({
   shifts,
-  readOnly = false,
-  timeOff,
-  availability,
   members,
   week,
   timezone,
-  availabilityTimezone = timezone,
   peers,
+  readOnly = false,
+  timeOff = [],
+  availability = [],
+  availabilityTimezone = timezone,
   carryIn = [],
   warning,
   pending,
   onAssign,
+  onRemove = () => {},
+  onStaffing = () => {},
   onAdd,
   onEdit,
 }: {
-  shifts: Shift[];
   readOnly?: boolean;
+  timeOff?: TimeOff[];
+  availability?: Availability[];
   availabilityTimezone?: string;
-  timeOff: TimeOff[];
-  availability: Availability[];
+  shifts: Shift[];
   members: Member[];
   week: string;
   timezone: string;
@@ -36,179 +43,355 @@ export function CoverageCalendar({
   warning: number;
   pending: boolean;
   onAssign: (slot: Shift, employeeId: string) => void;
+  onRemove?: (slot: Shift, assignmentId: string) => void;
+  onStaffing?: (slot: Shift, count: string, overstaffing: boolean) => void;
   onAdd: (day: string) => void;
   onEdit: (slot: Shift) => void;
 }) {
-  const days = Array.from({ length: 7 }, (_, index) => addDays(week, index));
   const [openId, setOpenId] = useState<string | null>(null);
-  const open = shifts.find((slot) => slot.id === openId);
   const [employeeId, setEmployeeId] = useState("");
-  useEffect(() => setEmployeeId(open?.employee_id || ""), [open?.id, open?.employee_id]);
-
-  const dateLabel = (day: string) =>
-    new Intl.DateTimeFormat("en-US", {
-      weekday: "long",
-      month: "short",
-      day: "numeric",
-      timeZone: "UTC",
-    }).format(new Date(`${day}T12:00:00Z`));
-
-  function warnings(slot: Shift) {
-    if (!employeeId) return { overlap: false, hours: 0 };
-    const overlap = [...shifts, ...peers].some(
-      (other) =>
-        other.id !== slot.id &&
-        other.employee_id === employeeId &&
-        Date.parse(other.starts_at) < Date.parse(slot.ends_at) &&
-        Date.parse(slot.starts_at) < Date.parse(other.ends_at),
-    );
-    const projected = [...shifts, ...carryIn]
-      .filter((other) => other.id !== slot.id && other.employee_id === employeeId)
-      .concat({ ...slot, employee_id: employeeId });
-    return {
-      overlap,
-      hours: hoursInWeek(projected, week, timezone),
-    };
-  }
-
+  const groups = groupShifts(shifts);
   return (
     <div className="coverage-calendar" aria-label="Weekly coverage schedule">
-      {days.map((day) => {
-        const daySlots = shifts
-          .filter((slot) => slot.starts_at && slot.starts_at.slice(0, 10) !== "")
-          .filter((slot) => localDate(slot.starts_at, timezone) === day)
-          .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
+      {Array.from({ length: 7 }, (_, i) => addDays(week, i)).map((day) => {
+        const dayGroups = groups
+          .filter((g) => localDate(g.starts_at, timezone) === day)
+          .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+        const label = new Intl.DateTimeFormat("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          timeZone: "UTC",
+        }).format(new Date(`${day}T12:00:00Z`));
         return (
-          <section className="coverage-day" key={day} aria-labelledby={`day-${day}`}>
+          <section
+            className="coverage-day"
+            key={day}
+            aria-labelledby={`day-${day}`}
+          >
             <header>
               <div>
-                <span>{dateLabel(day).split(",")[0]}</span>
-                <strong id={`day-${day}`}>{dateLabel(day).split(", ").slice(1).join(", ")}</strong>
+                <span>{label.split(",")[0]}</span>
+                <strong id={`day-${day}`}>
+                  {label.split(", ").slice(1).join(", ")}
+                </strong>
               </div>
-              <span className="day-count">
-                {daySlots.filter((slot) => slot.employee_id).length}/{daySlots.length}
-              </span>
+              <span className="day-count">{dayGroups.length} shifts</span>
             </header>
             <div className="coverage-slot-list">
-              {timeOff.filter(r => r.status === "approved" &&
-                Date.parse(r.starts_at) < Date.parse(localToInstant(`${addDays(day, 1)}T00:00`, timezone, "earlier")) &&
-                Date.parse(r.ends_at) > Date.parse(localToInstant(`${day}T00:00`, timezone, "earlier"))).map(r =>
-                <div className="approved-time-off" key={r.id}><strong>{members.find(m => m.id === r.employee_id)?.name || "Employee"}</strong><br />Approved time off · {r.full_day ? "Full day" : shiftLabel(r.starts_at, r.ends_at, timezone)}</div>
-              )}
-              {daySlots.map((slot) => {
-                const assigned = members.find((member) => member.id === slot.employee_id);
-                const isOpen = openId === slot.id;
-                const review = isOpen ? warnings(slot) : { overlap: false, hours: 0 };
-                const hardConflict = timeOffConflict(slot, timeOff);
-                const advisory = availabilityWarning(slot, availability, availabilityTimezone);
-                const proposed = { ...slot, employee_id: employeeId || null };
-                const proposedHard = isOpen && timeOffConflict(proposed, timeOff);
-                const proposedAdvisory = isOpen && availabilityWarning(proposed, availability, availabilityTimezone);
+              {timeOff
+                .filter(
+                  (request) =>
+                    request.status === "approved" &&
+                    Date.parse(request.starts_at) <
+                      Date.parse(
+                        localToInstant(
+                          `${addDays(day, 1)}T00:00`,
+                          timezone,
+                          "earlier",
+                        ),
+                      ) &&
+                    Date.parse(request.ends_at) >
+                      Date.parse(
+                        localToInstant(`${day}T00:00`, timezone, "earlier"),
+                      ),
+                )
+                .map((request) => (
+                  <div className="approved-time-off" key={request.id}>
+                    <strong>
+                      {members.find((m) => m.id === request.employee_id)
+                        ?.name || "Employee"}
+                    </strong>
+                    <br />
+                    Approved time off ·{" "}
+                    {request.full_day
+                      ? "Full day"
+                      : shiftLabel(
+                          request.starts_at,
+                          request.ends_at,
+                          timezone,
+                        )}
+                  </div>
+                ))}
+              {dayGroups.map((group) => {
+                const isOpen = openId === group.id;
+                const overlap =
+                  !!employeeId &&
+                  [...shifts, ...peers].some(
+                    (other) =>
+                      other.employee_id === employeeId &&
+                      other.id !== group.id &&
+                      Date.parse(other.starts_at) < Date.parse(group.ends_at) &&
+                      Date.parse(group.starts_at) < Date.parse(other.ends_at),
+                  );
+                const hours = employeeId
+                  ? hoursInWeek(
+                      [...shifts, ...carryIn]
+                        .filter((other) => other.employee_id === employeeId)
+                        .concat({ ...group, employee_id: employeeId }),
+                      week,
+                      timezone,
+                    )
+                  : 0;
+                const proposed = { ...group, employee_id: employeeId };
+                const timeOffBlocked =
+                  !!employeeId && timeOffConflict(proposed, timeOff);
+                const availabilityAdvisory =
+                  !!employeeId &&
+                  availabilityWarning(
+                    proposed,
+                    availability,
+                    availabilityTimezone,
+                  );
+                const hardConflict = group.assignments.some((a) =>
+                  timeOffConflict(a, timeOff),
+                );
+                const advisory = group.assignments.some((a) =>
+                  availabilityWarning(a, availability, availabilityTimezone),
+                );
+                const covered =
+                  group.assignments.length >= group.required_count;
                 return (
                   <article
-                    className={`coverage-slot ${slot.employee_id ? "covered" : "unassigned"} ${hardConflict ? "has-conflict" : ""}`}
-                    key={slot.id}
+                    className={`coverage-slot ${covered ? "covered" : "unassigned"} ${hardConflict ? "has-conflict" : ""}`}
+                    key={group.id}
                   >
                     <button
                       type="button"
+                      disabled={readOnly}
                       className="slot-trigger"
                       aria-expanded={isOpen}
-                      aria-controls={`assign-${slot.id}`}
-                      onClick={() => setOpenId(isOpen ? null : slot.id)}
+                      aria-controls={`assign-${group.id}`}
+                      onClick={() => {
+                        setOpenId(isOpen ? null : group.id);
+                        setEmployeeId("");
+                      }}
                     >
                       <span className="slot-topline">
-                        <strong>{slot.label || slot.position_name || "Shift"}</strong>
-                        <span className={`coverage-state ${slot.employee_id ? "covered" : "open"}`}>
-                          {slot.employee_id ? "Covered" : "Open"}
+                        <strong>{group.label || "Shift"}</strong>
+                        <span
+                          className={`coverage-state ${covered ? "covered" : "open"}`}
+                        >
+                          {group.assignments.length}/{group.required_count}
                         </span>
                       </span>
                       <span className="slot-time">
-                        {shiftLabel(slot.starts_at, slot.ends_at, timezone)}
+                        {shiftLabel(group.starts_at, group.ends_at, timezone)}
                       </span>
                       <span className="slot-position">
-                        {slot.position_name || "General"} · {slot.is_required ? "Required" : "One-off"}
+                        {group.position_name || "General"} ·{" "}
+                        {group.is_required ? "Recurring" : "One-off"}
                       </span>
-                      <span className="slot-assignee">
-                        <span className="avatar-mini" aria-hidden="true">
-                          {assigned?.name?.slice(0, 1).toUpperCase() || "+"}
-                        </span>
-                        {assigned?.name || "Assign an employee"}
+                      <span className="slot-assignees">
+                        {group.assignments.map((a) => (
+                          <span className="slot-assignee" key={a.id}>
+                            <span className="avatar-mini" aria-hidden="true">
+                              {members
+                                .find((m) => m.id === a.employee_id)
+                                ?.name.slice(0, 1) || "S"}
+                            </span>
+                            {members.find((m) => m.id === a.employee_id)
+                              ?.name || "Team member"}
+                          </span>
+                        ))}
+                        {!group.assignments.length && (
+                          <span className="slot-assignee">
+                            + Assign employees
+                          </span>
+                        )}
                       </span>
+                      <span className="sr-only">
+                        {group.assignments.length} of {group.required_count}{" "}
+                        employees assigned. Manage shift.
+                      </span>
+                      {group.notes && (
+                        <small className="slot-note">{group.notes}</small>
+                      )}
                     </button>
-                    {hardConflict && <p className="hard-conflict">Hard conflict · approved time off</p>}
-                    {advisory && <p className="inline-warning">Availability advisory</p>}
+                    {hardConflict && (
+                      <p className="hard-conflict">
+                        Hard conflict · an assigned employee has approved time
+                        off
+                      </p>
+                    )}
+                    {advisory && (
+                      <p className="inline-warning">
+                        Availability advisory · review assigned employees’
+                        preferences
+                      </p>
+                    )}
                     {isOpen && (
                       <div
                         className="assignment-popover"
-                        id={`assign-${slot.id}`}
-                        role="dialog"
-                        aria-label={`Assign ${slot.label || "shift"}`}
+                        id={`assign-${group.id}`}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") setOpenId(null);
+                        }}
                       >
-                        <label>
-                          Employee
-                          <select
-                            autoFocus
-                            value={employeeId}
-                            onChange={(event) => setEmployeeId(event.target.value)}
-                          >
-                            <option value="">Unassigned</option>
-                            {members.map((member) => (
-                              <option value={member.id} key={member.id}>
-                                {member.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        {review.overlap && (
-                          <p className="inline-warning" role="alert">
-                            Overlaps another shift for this employee.
-                          </p>
-                        )}
-                        {employeeId && review.hours > warning && (
-                          <p className="inline-warning">
-                            Projects {review.hours.toFixed(1)} hours this week, above the {warning}-hour review guideline.
-                          </p>
-                        )}
-                        {proposedHard && <p className="hard-conflict" role="alert">Hard conflict: approved time off. Choose another employee.</p>}
-                        {proposedAdvisory && <p className="inline-warning">Availability advisory: outside stated preferences. You may save this assignment.</p>}
-                        <div className="popover-actions">
-                          <button
-                            type="button"
-                            className="button primary"
-                            disabled={pending || proposedHard || review.overlap || employeeId === (slot.employee_id || "")}
-                            onClick={() => {
-                              onAssign(slot, employeeId);
-                              setOpenId(null);
-                            }}
-                          >
-                            {employeeId ? "Save assignment" : "Unassign"}
-                          </button>
-                          {!slot.is_required && (
+                        <p className="eyebrow">EMPLOYEE ASSIGNMENTS</p>
+                        {group.assignments.map((a) => (
+                          <div className="assignment-row" key={a.id}>
+                            <span>
+                              {members.find((m) => m.id === a.employee_id)
+                                ?.name || "Team member"}
+                            </span>
                             <button
                               type="button"
-                              className="button secondary"
-                              onClick={() => {
-                                onEdit(slot);
-                                setOpenId(null);
-                              }}
+                              className="remove-assignment"
+                              disabled={pending}
+                              onClick={() => onRemove(group, a.id)}
+                              aria-label={`Remove ${members.find((m) => m.id === a.employee_id)?.name || "employee"} from this shift`}
                             >
-                              Edit slot
+                              Remove
                             </button>
-                          )}
-                          <button type="button" className="popover-close" onClick={() => setOpenId(null)}>
-                            Close
+                          </div>
+                        ))}
+                        <label>
+                          Add employee
+                          <select
+                            value={employeeId}
+                            onChange={(e) => setEmployeeId(e.target.value)}
+                          >
+                            <option value="">Select employee…</option>
+                            {members
+                              .filter(
+                                (m) =>
+                                  !group.assignments.some(
+                                    (a) => a.employee_id === m.id,
+                                  ),
+                              )
+                              .map((m) => (
+                                <option key={m.id} value={m.id}>
+                                  {m.name}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                        {timeOffBlocked && (
+                          <p className="inline-warning" role="alert">
+                            Approved time off conflicts with this shift.
+                          </p>
+                        )}
+                        {availabilityAdvisory && (
+                          <p className="inline-warning">
+                            Availability advisory: outside this employee’s
+                            stated preferences.
+                          </p>
+                        )}
+                        {overlap && (
+                          <p className="inline-warning" role="alert">
+                            This employee has an overlapping shift.
+                          </p>
+                        )}
+                        {!!employeeId && hours > warning && (
+                          <p className="inline-warning">
+                            Projects {hours.toFixed(1)} hours; review the{" "}
+                            {warning}-hour guideline.
+                          </p>
+                        )}
+                        {!group.allow_overstaffing && covered && (
+                          <p className="availability-note">
+                            Staffing limit reached. Increase the requirement or
+                            allow extra employees.
+                          </p>
+                        )}
+                        <button
+                          type="button"
+                          className="button primary"
+                          disabled={
+                            pending ||
+                            !employeeId ||
+                            overlap ||
+                            timeOffBlocked ||
+                            (!group.allow_overstaffing && covered)
+                          }
+                          onClick={() => {
+                            onAssign(group, employeeId);
+                            setEmployeeId("");
+                          }}
+                        >
+                          Add employee
+                        </button>
+                        <form
+                          className="staffing-form"
+                          key={`${group.id}:${group.required_count}:${group.allow_overstaffing}`}
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            const data = new FormData(e.currentTarget);
+                            onStaffing(
+                              group,
+                              String(data.get("count")),
+                              data.get("overstaffing") === "on",
+                            );
+                          }}
+                        >
+                          <label>
+                            Employees needed
+                            <input
+                              name="count"
+                              aria-label="Employees needed"
+                              type="number"
+                              min="1"
+                              max="50"
+                              required
+                              defaultValue={group.required_count}
+                            />
+                          </label>
+                          <label className="check-label">
+                            <input
+                              name="overstaffing"
+                              type="checkbox"
+                              defaultChecked={group.allow_overstaffing}
+                            />
+                            Allow extra employees
+                          </label>
+                          <button
+                            className="button secondary"
+                            disabled={pending}
+                          >
+                            Save staffing
                           </button>
-                        </div>
+                        </form>
+                        <p className="availability-note">
+                          Availability preferences are advisory. Approved time
+                          off blocks assignment. Changes stay private until
+                          published.
+                        </p>
+                        <button
+                          type="button"
+                          className="button secondary"
+                          onClick={() => {
+                            onEdit(group);
+                            setOpenId(null);
+                          }}
+                        >
+                          Edit shift details
+                        </button>
+                        <button
+                          type="button"
+                          className="popover-close"
+                          onClick={() => setOpenId(null)}
+                        >
+                          Close
+                        </button>
                       </div>
                     )}
                   </article>
                 );
               })}
-              {!readOnly && !daySlots.length && <p className="empty-day">No coverage slots</p>}
+              {!dayGroups.length && (
+                <p className="empty-day">No shifts planned</p>
+              )}
             </div>
-            {!readOnly && <button type="button" className="add-one-off" onClick={() => onAdd(day)}>
-              + One-off slot
-            </button>}
+            {!readOnly && (
+              <button
+                type="button"
+                className="add-one-off"
+                onClick={() => onAdd(day)}
+              >
+                + Add shift
+              </button>
+            )}
           </section>
         );
       })}

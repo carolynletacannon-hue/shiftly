@@ -1,3 +1,4 @@
+import { groupShifts } from "./groups";
 import { addDays, hoursInWeek, localDate, shiftLabel } from "./time";
 import type { Member, Shift } from "./types";
 export function ScheduleCalendar({
@@ -29,11 +30,18 @@ export function ScheduleCalendar({
       day: "numeric",
       timeZone: "UTC",
     }).format(new Date(day + "T12:00:00Z"));
-  const card = (s: Shift, showName = false) => (
+  const card = (s: Shift & { assignments?: Shift[] }, showName = false) => (
     <div key={s.id} className="schedule-shift">
+      {s.label && <strong>{s.label}</strong>}
       {showName && (
         <strong>
-          {members.find((m) => m.id === s.employee_id)?.name || "Team member"}
+          {(s.assignments || [s])
+            .map(
+              (a) =>
+                members.find((m) => m.id === a.employee_id)?.name ||
+                "Team member",
+            )
+            .join(", ")}
         </strong>
       )}
       {onShift ? (
@@ -82,7 +90,7 @@ export function ScheduleCalendar({
             {days.map((day) => (
               <section key={day}>
                 <h3>{label(day)}</h3>
-                {shifts
+                {groupShifts(shifts)
                   .filter((s) => localDate(s.starts_at, timezone) === day)
                   .map((s) => card(s, true))}
                 {!shifts.some(

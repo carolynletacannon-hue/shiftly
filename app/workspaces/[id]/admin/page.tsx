@@ -77,7 +77,7 @@ export default async function Page({
     } catch {}
   }
   return (
-    <Frame>
+    <Frame workspace={{ id, role, name: org.name }}>
       <div className="page-heading">
         <div>
           <p className="eyebrow">WORKSPACE MANAGEMENT</p>
