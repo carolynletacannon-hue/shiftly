@@ -1,0 +1,129 @@
+.print-schedule {
+  display: none;
+}
+
+@media print {
+  @page shiftly-schedule {
+    size: letter landscape;
+    margin: 0.4in;
+  }
+
+  /* The print component is a sibling of Frame, directly under body. Removing
+     the shell from layout also removes its whitespace and all editing UI. */
+  body:has(> .print-schedule) > :not(.print-schedule) {
+    display: none !important;
+  }
+
+  html:has(.print-schedule),
+  body:has(> .print-schedule) {
+    margin: 0 !important;
+    padding: 0 !important;
+    min-width: 0 !important;
+    background: white !important;
+    color: black !important;
+    color-scheme: light;
+  }
+
+  .print-schedule {
+    display: block;
+    page: shiftly-schedule;
+    width: 100%;
+    font: 11pt/1.2 Arial, Helvetica, sans-serif;
+    color: black;
+    background: white;
+    overflow-wrap: anywhere;
+  }
+
+  .print-schedule *,
+  .print-schedule *::before,
+  .print-schedule *::after {
+    box-sizing: border-box;
+    color: black !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  .print-schedule-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 12pt;
+    margin-bottom: 12pt;
+    break-inside: avoid;
+    break-after: avoid;
+  }
+
+  .print-schedule h1 {
+    margin: 0 0 4pt;
+    font-size: 20pt;
+    line-height: 1.2;
+    letter-spacing: normal;
+  }
+
+  .print-schedule p {
+    margin: 0;
+  }
+
+  .print-schedule-draft {
+    border: 1pt solid black;
+    padding: 4pt 8pt;
+    flex-shrink: 0;
+  }
+
+  .print-schedule-grid {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font: inherit;
+  }
+
+  .print-schedule-grid thead {
+    display: table-header-group;
+  }
+
+  .print-schedule-grid th,
+  .print-schedule-grid td {
+    width: calc(100% / 7);
+    border: 0.75pt solid black;
+    padding: 4pt 5pt;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .print-schedule-grid th span {
+    display: block;
+  }
+
+  .print-schedule-grid th span + span {
+    margin-top: 2pt;
+    font-weight: normal;
+  }
+
+  /* Use independent rows rather than an unbreakable week: a busy week can
+     continue on another page at a readable size, with day headings repeated. */
+  .print-schedule-grid tr,
+  .print-schedule-shift,
+  .print-schedule-shift li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-schedule-time {
+    font-weight: bold;
+  }
+
+  .print-schedule-shift ul {
+    list-style: none;
+    padding: 0;
+    margin: 4pt 0 0;
+  }
+
+  .print-schedule-shift li + li {
+    margin-top: 1.5pt;
+  }
+
+  .print-schedule-unassigned {
+    font-weight: bold;
+  }
+}

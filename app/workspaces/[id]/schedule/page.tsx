@@ -10,6 +10,7 @@ import type {
 } from "@/lib/scheduling/types";
 import { ScheduleEditor } from "./editor";
 import { WeekNavigation } from "@/lib/scheduling/week-navigation";
+import { PrintSchedule } from "@/lib/scheduling/print-schedule";
 export async function SchedulingPage({
   params,
   searchParams,
@@ -143,6 +144,7 @@ export async function SchedulingPage({
       m.display_name,
   }));
   return (
+    <>
     <Frame>
       {setupSaved && <p className="notice" role="status">{setupSaved === "applied" ? "Weekly setup saved. This week’s shifts are ready for assignment." : "Weekly setup saved for future weeks. This week is unchanged."}</p>}
       <div className="page-heading">
@@ -193,6 +195,16 @@ export async function SchedulingPage({
         peers={peers}
       />
     </Frame>
+    {!advanced && draft && <PrintSchedule
+      businessName={org.name}
+      week={week}
+      timezone={timezone}
+      shifts={draft.shifts as Shift[]}
+      members={members}
+      carryIn={carryIn}
+      draft={draft.published_revision !== draft.revision}
+    />}
+    </>
   );
 }
 

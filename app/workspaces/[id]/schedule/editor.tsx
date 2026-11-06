@@ -210,8 +210,8 @@ export function ScheduleEditor({
               </div>
             </div>
             <div className="schedule-tools">
-              <button type="button" className="button secondary" onClick={() => window.print()}>
-                Print week
+              <button type="button" className="button secondary" disabled={pending} onClick={() => window.print()}>
+                Print Schedule
               </button>
               <button
                 type="button"
