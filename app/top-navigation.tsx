@@ -1,4 +1,5 @@
 "use client";
+import { Brand } from "./brand";
 import Link from "next/link";
 import { logout } from "./auth/actions";
 import { usePathname } from "next/navigation";
@@ -42,10 +43,9 @@ export function TopNavigation({
       <Link
         className="brand"
         href={workspace ? `${base}` : "/workspaces"}
-        aria-label="Shiftly home"
+        aria-label="Meadowmark home"
       >
-        <span className="brand-mark">s</span>shiftly
-        <span className="brand-dot">.</span>
+        <Brand />
       </Link>
       <button
         className="mobile-menu button secondary"
@@ -100,7 +100,7 @@ export function TopNavigation({
       <details className="workspace-menu">
         <summary aria-label="Account and workspace menu">
           <span className="account-avatar" aria-hidden="true">
-            {workspace?.name?.slice(0, 1) || "S"}
+            {workspace?.name?.slice(0, 1) || "M"}
           </span>
           <span className="workspace-menu-label">
             {workspace?.name || "Your workspace"}

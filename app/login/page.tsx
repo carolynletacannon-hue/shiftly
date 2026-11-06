@@ -10,7 +10,7 @@ export default async function Page({
   return (
     <Frame>
       <section className="panel auth-card">
-        <p className="eyebrow">WELCOME TO SHIFTLY</p>
+        <p className="eyebrow">WELCOME TO MEADOWMARK</p>
         <h1>Welcome back</h1>
         <p className="subtitle">Your team, in one organized place.</p>
         <Message text={params.message} />

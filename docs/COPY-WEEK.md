@@ -14,7 +14,7 @@ Copy dates advance by multiples of seven calendar days in the saved business tim
 
 ## Transaction and permissions
 
-`copy_schedule_week` is an invoker wrapper around a private definer function, following Shiftly's existing command architecture. The private function checks `auth.uid()` and manager/owner membership before and after taking the organization lock. Source/destination reads and all writes are organization scoped. Anonymous execution is revoked; the copy audit table has RLS and manager-only read grants. No new write grant is given to clients on scheduling tables.
+`copy_schedule_week` is an invoker wrapper around a private definer function, following Meadowmark's existing command architecture. The private function checks `auth.uid()` and manager/owner membership before and after taking the organization lock. Source/destination reads and all writes are organization scoped. Anonymous execution is revoked; the copy audit table has RLS and manager-only read grants. No new write grant is given to clients on scheduling tables.
 
 Preview executes the same mutation and validation path in a subtransaction and deliberately rolls it back, including deferred assignment audit events. A token binds the options, source/destination state, groups, assignments, published assignments, employees, time off, availability, timezone and hours settings. Confirmation recomputes it under the organization lock; intervening changes require another preview. Confirmation atomically advances the destination revision and writes both the existing schedule change audit and a copy-specific before snapshot. Existing editors holding the previous revision fail their normal revision checks.
 

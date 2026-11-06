@@ -9,7 +9,7 @@ while a schedule change is saving, so it uses the refreshed server-rendered week
 The printout includes the business, selected date range and schedule time zone,
 seven dated day columns, shift times, employee names and **Unassigned** places.
 Slots with identical start/end instants share a list of employees and open places.
-Names come from the existing employee roster; a Shiftly account is not required.
+Names come from the existing employee roster; a Meadowmark account is not required.
 The current revision is marked **Draft** unless it matches the published revision.
 There are no new queries, database changes, publication actions or notifications.
 

@@ -35,7 +35,7 @@ test("Gmail requires implicit TLS, verified certificates, bounded waits and priv
     assert.equal(options.socketTimeout, 15_000);
     return {
       async sendMail(mail) {
-        assert.deepEqual(mail.from, { name: "Shiftly", address: config.user });
+        assert.deepEqual(mail.from, { name: "Meadowmark", address: config.user });
         assert.deepEqual(mail.envelope, { from: config.user, to: [message.to] });
         assert.equal(mail.to, message.to);
         assert.equal(mail.html, message.html);
@@ -125,7 +125,7 @@ test("Nodemailer composes both invitation alternatives and branded sender withou
     async sendMail(mail) {
       const composed = await composer.sendMail(mail);
       const mime = composed.message.toString();
-      assert.match(mime, /From: Shiftly <dedicated.shiftly@gmail.com>/);
+      assert.match(mime, /From: Meadowmark <dedicated.shiftly@gmail.com>/);
       assert.match(mime, /Content-Type: multipart\/alternative/);
       assert.match(mime, /Content-Type: text\/plain/);
       assert.match(mime, /Content-Type: text\/html/);

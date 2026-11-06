@@ -91,6 +91,6 @@ export async function timeOffAction(
     revalidatePath(`/workspaces/${org}/${route}`);
   return {
     ok: true,
-    message: `Saved.${emailOk ? "" : " Email could not be confirmed. The notification is available in Shiftly."}`,
+    message: `Saved.${emailOk ? "" : " Email could not be confirmed. The notification is available in Meadowmark."}`,
   };
 }
