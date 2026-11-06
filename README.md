@@ -231,3 +231,11 @@ alternatives. SMTP is mocked, so automated tests send no email. The existing iso
 Postgres tests still cover permissions, organization isolation, expiration, single
 use, resend rotation, cooldowns, and actor/workspace limits. After deployment, run
 the controlled-recipient smoke test above to verify your actual Gmail account.
+
+## Phase 6 calendar subscriptions
+
+Private, revocable calendar subscriptions are available on My Schedule after the
+additive Phase 6 migration and hosting privacy configuration. Feeds are disabled
+by default. See [the Phase 6 runbook](docs/PHASE6-CALENDAR-INTEGRATION.md) for the
+exact migration, required environment variables, Google/Apple/Outlook setup,
+security model, cancellation limitations, validation and rollback instructions.

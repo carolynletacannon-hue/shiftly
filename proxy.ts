@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 export async function proxy(request: NextRequest) {
+  // Public bearer feed must never refresh sessions or enter auth telemetry.
+  if (request.nextUrl.pathname === "/api/calendar") return NextResponse.next();
   let response = NextResponse.next({ request });
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
