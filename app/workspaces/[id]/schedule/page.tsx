@@ -1,3 +1,4 @@
+import { CopyWeek } from "./copy-week";
 import { Frame } from "@/app/components";
 import { requireWorkspace } from "@/lib/auth";
 import { addDays, validWeek, weekBounds } from "@/lib/scheduling/time";
@@ -189,6 +190,7 @@ export async function SchedulingPage({
             </p>
           </div>
         </div>
+        <div className="schedule-tools"><CopyWeek key={week} orgId={id} week={week} hoursWarning={settings?.weekly_hours_warning ?? 40} /></div>
         <WeekNavigation
           id={id}
           week={week}

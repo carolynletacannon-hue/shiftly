@@ -1048,3 +1048,11 @@
 .hard-conflict { background: #fff0f1; border-left: 3px solid #b12e3f; color: #8b2330; padding: 10px; font-size: 13px; }
 .approved-time-off { background: #fce8eb; border: 1px solid #ecc0c7; border-radius: 8px; color: #8b2330; padding: 8px; font-size: 12px; overflow-wrap: anywhere; }
 .coverage-slot.has-conflict { border-color: #b12e3f; }
+
+.copy-week-dialog { width: min(44rem, calc(100vw - 2rem)); max-height: 90dvh; overflow-y: auto; border: 1px solid var(--line); border-radius: 1rem; padding: 1.5rem; color: var(--ink); background: var(--surface); }
+.copy-week-dialog::backdrop { background: rgb(15 23 42 / .55); }
+.copy-week-dialog fieldset { border: 0; padding: 0; display: grid; gap: 1rem; }
+.copy-week-dialog label { display: grid; gap: .4rem; margin-block: .75rem; }
+.copy-week-dialog input:not([type=checkbox]), .copy-week-dialog select { width: 100%; min-height: 44px; }
+.copy-week-dialog button { margin: .5rem .5rem .5rem 0; }
+.copy-week-dialog li { margin-block: .5rem; }
