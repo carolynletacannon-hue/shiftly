@@ -1032,3 +1032,19 @@
 .draft-start-form { display: flex; flex-wrap: wrap; justify-content: center; align-items: end; }
 .draft-options { max-width: 420px; }
 .draft-options label { margin-top: 12px; }
+
+.time-off-screen { display: grid; gap: 18px; }
+.time-off-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,280px),1fr)); gap: 16px; }
+.time-off-card { border: 1px solid var(--line,#dce3ed); border-radius: 12px; padding: 16px; }
+.time-off-card-heading { display: flex; gap: 12px; justify-content: space-between; align-items: center; }
+.time-off-status { border-radius: 20px; padding: 4px 10px; background: #edf1f7; font-size: 13px; }
+.time-off-status.approved { background: #dcf4e7; color: #145b38; }
+.time-off-status.pending { background: #fff0ce; color: #73510e; }
+.time-off-status.denied { background: #fce3e5; color: #92313c; }
+.private-note { white-space: pre-wrap; overflow-wrap: anywhere; }
+.time-off-form { max-width: 540px; margin-top: 16px; }
+.availability-row { display: flex; flex-wrap: wrap; gap: 12px; padding: 10px 0; border-bottom: 1px solid #e5eaf1; }
+.availability-row label { flex: 1; min-width: 100px; }
+.hard-conflict { background: #fff0f1; border-left: 3px solid #b12e3f; color: #8b2330; padding: 10px; font-size: 13px; }
+.approved-time-off { background: #fce8eb; border: 1px solid #ecc0c7; border-radius: 8px; color: #8b2330; padding: 8px; font-size: 12px; overflow-wrap: anywhere; }
+.coverage-slot.has-conflict { border-color: #b12e3f; }

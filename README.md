@@ -1,17 +1,17 @@
 # Shiftly
 
-A mobile-first scheduling product for small teams. Shiftly provides Supabase authentication, multi-business workspaces, secure invitations, and persistent manager scheduling with explicit publishing and employee views. The original fictional dashboard remains at `/demo`, separate from real workspace schedules. Time-off requests, swaps, and calendar subscriptions are future phases.
+A mobile-first scheduling product for small teams. Shiftly provides Supabase authentication, multi-business workspaces, secure invitations, and persistent manager scheduling with explicit publishing and employee views. The original fictional dashboard remains at `/demo`, separate from real workspace schedules. Time-off requests, manager review, and weekly availability are supported. Swaps and calendar subscriptions are future phases.
 
 ## Deploy with GitHub and Vercel
 
-1. For an installation with coverage scheduling already applied, apply **only** `supabase/migrations/20261105060001_simple_weekly_scheduling.sql` before merging or deploying this release. Do not rerun existing migrations. See [roster backfill, migration gate and validation](docs/SIMPLE-SCHEDULING.md). The initial database setup below is for new installations only.
+1. For an installation with the weekly-setup fix already applied, apply **only** `supabase/migrations/20261106001914_phase3_time_off_availability.sql` before merging or deploying Phase 3. Do not rerun existing migrations. See [the Phase 3 migration gate, exact prerequisites and validation](docs/PHASE3-TIME-OFF.md). The initial database setup below is for new installations only.
 2. In Vercel → Project → Settings → Environment Variables, configure:
    - `NEXT_PUBLIC_SUPABASE_URL`: your project's URL (already configured).
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: your project's publishable key (already configured).
    - `NEXT_PUBLIC_SITE_URL`: your canonical app origin, such as `https://your-app.vercel.app` (no trailing path). Set this separately for each deployment environment that should receive auth links.
 3. Complete the Supabase Auth configuration below, then redeploy. Vercel uses the standard Next.js build; no custom server is needed.
 
-Never commit credentials, `.env.local`, database passwords, service-role keys or access tokens. This app uses the user's session and publishable key; it does not require a service-role key.
+Never commit credentials, `.env.local`, database passwords, service-role keys or access tokens. Workspace actions use the user's session and publishable key. Phase 3 email delivery optionally uses a server-only service-role key, as described below.
 
 ## Apply database migrations
 
@@ -80,6 +80,20 @@ and staffing counts in one operation, then opens the generated first draft.
 Roster records never grant authenticated access. Later invitations securely link a
 verified account to the existing employee record and preserve its shifts. Existing
 memberships and schedules are retained. [Migration and manager workflow](docs/SIMPLE-SCHEDULING.md).
+
+## Time off and availability (Phase 3)
+
+Employees request full/partial days or ranges, track decisions, cancel pending
+requests, and set recurring weekly availability. Owners/managers review requests
+with Approve/Deny buttons and record time off for employees without accounts.
+Approved time off appears in the calendar and blocks conflicting assignments or
+publication; availability preferences produce advisory warnings. Existing published
+shifts stay intact until a manager fixes conflicts and explicitly republishes.
+
+Gmail uses the existing provider. Private in-app notifications always persist;
+best-effort email additionally requires server-only `SUPABASE_SERVICE_ROLE_KEY`
+so recipient addresses cannot be exposed to employee sessions. Email failure never
+reverses a decision. [Migration gate, setup, security and validation](docs/PHASE3-TIME-OFF.md).
 
 ## Workspace permissions
 
