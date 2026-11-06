@@ -52,3 +52,18 @@ smoke checks and a real invitation send remain deployment checks. If hosted
 Supabase authentication email templates contain custom Shiftly branding outside
 this repository, update their display copy separately without changing auth URLs
 or sender configuration. No hosted service settings were edited here.
+
+## Navigation surface follow-up
+
+Removed the remaining charcoal background declarations from base sidebar,
+account-header and workspace-card styles. These now use the existing white and
+off-white surface tokens, subtle borders, charcoal text, and pale sage hover and
+selected states, including the legacy account navigation selectors. No tokens,
+component behavior or integrations changed.
+
+Repeated verification: installation, typecheck, production build, all 83 tests,
+and diff whitespace checks passed. Chromium confirmed white demo/account headers,
+charcoal text, subtle borders, sage demo hover/selection, white account dropdowns,
+and white mobile navigation at 1440, 390 and 320 pixels with dark-mode preference.
+An isolated base-CSS check also confirmed that legacy account/sidebar selectors
+remain light without relying on later overrides. No lint command is configured.

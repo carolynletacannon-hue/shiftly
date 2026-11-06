@@ -258,8 +258,8 @@ input[type="checkbox"] {
   text-decoration: none;
 }
 .app-navigation a:hover {
-  color: #fff;
-  background: var(--surface-secondary);
+  color: var(--accent);
+  background: var(--accent-light);
 }
 .app-navigation a[aria-current="page"] {
   color: var(--accent);
@@ -619,6 +619,7 @@ input[type="checkbox"] {
   flex-direction: row;
   align-items: center;
   gap: 30px;
+  color: var(--text);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
