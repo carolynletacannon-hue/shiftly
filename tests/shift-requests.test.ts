@@ -130,7 +130,15 @@ test("shift transfers enforce consent, tenant permissions, revisions and single 
   await assert.rejects(cmd("accept", { request_id: r.id }), /Permission/);
   await as(2);
   r = await cmd("accept", { request_id: r.id });
+  assert.equal(
+    r.status,
+    "pending",
+    "Every swap still requires manager approval",
+  );
+  await as(0);
+  r = await cmd("approve", { request_id: r.id });
   assert.equal(r.status, "completed");
+  await as(2);
   // Competing acceptances have exactly one winner, even with automatic finalization.
   await assert.rejects(cmd("coverage", { shift_id: b }), /own/);
   await as(1);
@@ -182,10 +190,18 @@ test("shift transfers enforce consent, tenant permissions, revisions and single 
     [org],
   );
   // New overlapping draft work after consent also blocks final approval.
-  const conflictId="60000000-0000-0000-0000-000000000004";
-  await db.query("insert into public.shifts(id,organization_id,schedule_id,employee_id,starts_at,ends_at)values($1,$2,$3,$4,'2030-01-07T07:00Z','2030-01-07T09:00Z')",[conflictId,org,sid,users[1]]);
-  await as(0);await assert.rejects(cmd("approve",{request_id:r.id}),/Overlapping draft/);
-  await db.exec("reset role");await db.query("delete from public.shifts where id=$1",[conflictId]);
+  const conflictId = "60000000-0000-0000-0000-000000000004";
+  await db.query(
+    "insert into public.shifts(id,organization_id,schedule_id,employee_id,starts_at,ends_at)values($1,$2,$3,$4,'2030-01-07T07:00Z','2030-01-07T09:00Z')",
+    [conflictId, org, sid, users[1]],
+  );
+  await as(0);
+  await assert.rejects(
+    cmd("approve", { request_id: r.id }),
+    /Overlapping draft/,
+  );
+  await db.exec("reset role");
+  await db.query("delete from public.shifts where id=$1", [conflictId]);
   // Unrelated unpublished changes remain unpublished after a transfer.
   await db.query(
     "update public.schedules set revision=revision+1 where id=$1",
@@ -236,12 +252,33 @@ test("shift transfers enforce consent, tenant permissions, revisions and single 
   // Published unassigned shifts are claimed with explicit employee consent.
   await db.exec("reset role");
   const openId = "60000000-0000-0000-0000-000000000003";
-  await db.query("insert into public.shifts(id,organization_id,schedule_id,employee_id,starts_at,ends_at)values($1,$2,$3,null,'2030-01-09T06:00Z','2030-01-09T14:00Z')", [openId,org,sid]);
-  await db.query("insert into public.published_shifts(id,organization_id,schedule_id,employee_id,starts_at,ends_at,position_name,notes)values($1,$2,$3,null,'2030-01-09T06:00Z','2030-01-09T14:00Z','General','')", [openId,org,sid]);
-  await as(1);r=await cmd("open",{shift_id:openId});assert.equal(r.status,"pending");assert.equal(r.accepted_by,users[1]);
-  await as(0);await cmd("approve",{request_id:r.id});
-  assert.equal((await row("select employee_id from public.published_shifts where id=$1",[openId])).employee_id,users[1]);
-  await db.exec("reset role");assert.ok((await row("select count(*)::integer n from public.shift_email_deliveries")).n>0);
+  await db.query(
+    "insert into public.shifts(id,organization_id,schedule_id,employee_id,starts_at,ends_at)values($1,$2,$3,null,'2030-01-09T06:00Z','2030-01-09T14:00Z')",
+    [openId, org, sid],
+  );
+  await db.query(
+    "insert into public.published_shifts(id,organization_id,schedule_id,employee_id,starts_at,ends_at,position_name,notes)values($1,$2,$3,null,'2030-01-09T06:00Z','2030-01-09T14:00Z','General','')",
+    [openId, org, sid],
+  );
+  await as(1);
+  r = await cmd("open", { shift_id: openId });
+  assert.equal(r.status, "pending");
+  assert.equal(r.accepted_by, users[1]);
+  await as(0);
+  await cmd("approve", { request_id: r.id });
+  assert.equal(
+    (
+      await row("select employee_id from public.published_shifts where id=$1", [
+        openId,
+      ])
+    ).employee_id,
+    users[1],
+  );
+  await db.exec("reset role");
+  assert.ok(
+    (await row("select count(*)::integer n from public.shift_email_deliveries"))
+      .n > 0,
+  );
   await as(3);
   assert.equal(
     (await db.query("select * from public.shift_requests")).rows.length,

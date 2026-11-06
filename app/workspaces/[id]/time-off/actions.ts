@@ -2,7 +2,8 @@
 import { requireWorkspace } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { localToInstant, type TimeChoice } from "@/lib/scheduling/time";
-import { deliverTimeOffEmails } from "@/lib/time-off/notifications";
+import { after } from "next/server";
+import { deliverShiftEmails } from "@/lib/shift-requests/email";
 
 export async function timeOffAction(
   org: string,
@@ -11,7 +12,7 @@ export async function timeOffAction(
 ) {
   const { db } = await requireWorkspace(
     org,
-    ["manual", "approve", "deny", "remove_manual"].includes(command)
+    ["manual", "approve", "deny", "remove_manual", "revoke"].includes(command)
       ? ["owner", "manager"]
       : undefined,
   );
@@ -24,6 +25,7 @@ export async function timeOffAction(
       "cancel",
       "availability",
       "remove_manual",
+      "revoke",
     ].includes(command)
   )
     return { ok: false, message: "Unknown action." };
@@ -78,19 +80,14 @@ export async function timeOffAction(
         : "Unable to save. Check the dates and times, then refresh and try again.",
     };
   }
-  // The transaction has committed. Notification failure must never change ok.
-  let emailOk = true;
-  if (["submit", "approve", "deny"].includes(command)) {
-    try {
-      emailOk = await deliverTimeOffEmails(data.id);
-    } catch {
-      emailOk = false;
-    }
-  }
+  // Saved decisions stay successful independently of delivery.
+  if (["submit", "approve", "deny", "revoke"].includes(command))
+    after(deliverShiftEmails);
   for (const route of ["time-off", "schedule", "my-schedule"])
     revalidatePath(`/workspaces/${org}/${route}`);
   return {
     ok: true,
-    message: `Saved.${emailOk ? "" : " Email could not be confirmed. The notification is available in Meadowmark."}`,
+    message:
+      "Saved. Important updates are available in the notification center.",
   };
 }

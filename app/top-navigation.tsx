@@ -1,15 +1,44 @@
 "use client";
+import { NotificationBell } from "./notification-bell";
 import { Brand } from "./brand";
 import Link from "next/link";
 import { logout } from "./auth/actions";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 export function TopNavigation({
   workspace,
 }: {
   workspace?: { id: string; role: string; name?: string };
 }) {
   const pathname = usePathname();
+  const [unread, setUnread] = useState<number | null>(null);
+  useEffect(() => {
+    if (!workspace) return;
+    let active = true;
+    async function refresh() {
+      try {
+        const response = await fetch(
+          `/api/notifications?workspace=${workspace!.id}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) return;
+        const data = await response.json();
+        if (active) setUnread(data.unread);
+      } catch {
+        /* Navigation remains available if the count cannot load. */
+      }
+    }
+    void refresh();
+    const interval = setInterval(refresh, 60000);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("notifications-read", refresh);
+    return () => {
+      active = false;
+      clearInterval(interval);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("notifications-read", refresh);
+    };
+  }, [workspace?.id, pathname]);
   const [open, setOpen] = useState(false);
   const base = workspace ? `/workspaces/${workspace.id}` : "";
   const admin = workspace && ["owner", "manager"].includes(workspace.role);
@@ -78,25 +107,7 @@ export function TopNavigation({
           </Link>
         ))}
       </nav>
-      {workspace && (
-        <Link
-          className="notifications-link"
-          href={`${base}/shift-requests#notifications`}
-          aria-label="Notifications"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            aria-hidden="true"
-          >
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
-          </svg>
-        </Link>
-      )}
+      {workspace && <NotificationBell base={base} unread={unread} />}
       <details className="workspace-menu">
         <summary aria-label="Account and workspace menu">
           <span className="account-avatar" aria-hidden="true">
@@ -113,6 +124,9 @@ export function TopNavigation({
             <Link href={`${base}/schedule/settings`}>
               Advanced scheduling settings
             </Link>
+          )}
+          {workspace && (
+            <Link href={`${base}/notifications`}>Notification preferences</Link>
           )}
           <Link href="/workspaces">Switch workspace</Link>
           <Link href="/demo">Explore demo</Link>

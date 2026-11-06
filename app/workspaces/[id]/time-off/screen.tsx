@@ -83,7 +83,7 @@ export function TimeOffScreen({
           Date.parse(r.starts_at) < Date.parse(s.ends_at),
       );
       return (
-        <article className="time-off-card" key={r.id}>
+        <article className="time-off-card" id={`request-${r.id}`} key={r.id}>
           <div className="time-off-card-heading">
             <strong>{employee?.name || "Employee"}</strong>
             <span className={`time-off-status ${r.status}`}>
@@ -141,6 +141,15 @@ export function TimeOffScreen({
                 onClick={() => run("cancel", { id: r.id })}
               >
                 Cancel request
+              </button>
+            )}
+            {manager && r.status === "approved" && !employee?.placeholder && (
+              <button
+                className="button secondary"
+                disabled={pending}
+                onClick={() => run("revoke", { id: r.id })}
+              >
+                Cancel approved time off
               </button>
             )}
             {manager &&
