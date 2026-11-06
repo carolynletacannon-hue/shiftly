@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./scheduling.css";
+import "./print-schedule.css";
 
 export const metadata: Metadata = {
   title: "Shiftly | Team Scheduling",

@@ -24,10 +24,15 @@ import type {
   Shift,
   ShiftTemplate,
 } from "@/lib/scheduling/types";
+import type { TimeOff, Availability } from "@/lib/time-off/types";
+import { timeOffConflict, availabilityWarning } from "@/lib/time-off/conflicts";
 import { scheduleAction } from "./actions";
 
 export function ScheduleEditor({
   orgId,
+  timeOff,
+  availability,
+  availabilityTimezone,
   advanced = false,
   week,
   timezone,
@@ -41,6 +46,9 @@ export function ScheduleEditor({
   peers,
   firstDay,
 }: {
+  availabilityTimezone: string;
+  timeOff: TimeOff[];
+  availability: Availability[];
   advanced?: boolean;
   orgId: string;
   week: string;
@@ -138,6 +146,8 @@ export function ScheduleEditor({
       ),
     }))
     .filter((member) => member.hours > warning);
+  const hardConflicts = [...shifts, ...carryIn].filter(s => timeOffConflict(s, timeOff));
+  const advisoryWarnings = [...shifts, ...carryIn].filter(s => availabilityWarning(s, availability, availabilityTimezone));
   const status = !schedule?.published_revision
     ? "Private draft"
     : schedule.published_revision === schedule.revision
@@ -147,6 +157,8 @@ export function ScheduleEditor({
   return (
     <div className="coverage-workspace" aria-busy={pending}>
       <div className="message-stack" aria-live="polite">
+        {!!hardConflicts.length && <p className="hard-conflict" role="alert">Hard conflict: {hardConflicts.length} assigned shift(s) overlap approved time off. Reassign them in their starting week before publishing. Existing published shifts stay unchanged.</p>}
+        {!!advisoryWarnings.length && <p className="inline-warning">Availability advisory: {advisoryWarnings.length} assigned shift(s) fall outside stated preferences. You may keep these assignments.</p>}
         {error && <p className="notice schedule-error" role="alert">{error}</p>}
         {notice && <p className="notice success-notice" role="status">{notice}</p>}
         {pending && <p className="save-status" role="status">Saving…</p>}
@@ -188,6 +200,7 @@ export function ScheduleEditor({
             </details>
             <button className="button primary">Create weekly draft</button>
           </CommandForm>
+          {!advanced && <div className="time-off-preview"><h3>Approved time off</h3><CoverageCalendar readOnly shifts={[]} members={members} week={week} timezone={timezone} availabilityTimezone={availabilityTimezone} timeOff={timeOff} availability={availability} peers={[]} warning={warning} pending={pending} onAssign={() => {}} onAdd={() => {}} onEdit={() => {}} /></div>}
         </section>
       ) : (
         <>
@@ -210,8 +223,8 @@ export function ScheduleEditor({
               </div>
             </div>
             <div className="schedule-tools">
-              <button type="button" className="button secondary" onClick={() => window.print()}>
-                Print week
+              <button type="button" className="button secondary" disabled={pending} onClick={() => window.print()}>
+                Print Schedule
               </button>
               <button
                 type="button"
@@ -268,6 +281,9 @@ export function ScheduleEditor({
 
           <section className="panel coverage-grid-panel">
             <CoverageCalendar
+              availabilityTimezone={availabilityTimezone}
+              timeOff={timeOff}
+              availability={availability}
               shifts={shifts}
               members={members}
               week={week}
@@ -319,6 +335,9 @@ export function ScheduleEditor({
                 positionOptions={positionOptions}
                 timezone={timezone}
                 week={week}
+                availabilityTimezone={availabilityTimezone}
+              timeOff={timeOff}
+                availability={availability}
                 peers={[...shifts, ...peers]}
                 warning={warning}
                 pending={pending}
@@ -509,6 +528,9 @@ function TemplateFields({ template, positionOptions }: { template?: ShiftTemplat
 }
 
 function SlotForm({
+  timeOff,
+  availability,
+  availabilityTimezone,
   date,
   slot,
   members,
@@ -521,6 +543,9 @@ function SlotForm({
   pending,
   onSubmit,
 }: {
+  availabilityTimezone: string;
+  timeOff: TimeOff[];
+  availability: Availability[];
   date: string;
   slot?: Shift;
   members: Member[];
@@ -544,6 +569,7 @@ function SlotForm({
   let problem = "";
   let duration = 0;
   let projected = 0;
+  let availabilityAdvisory = false;
   try {
     const startsAt = localToInstant(start, timezone, startChoice);
     const endsAt = localToInstant(end, timezone, endChoice);
@@ -559,6 +585,9 @@ function SlotForm({
       Date.parse(peer.starts_at) < Date.parse(endsAt) && Date.parse(startsAt) < Date.parse(peer.ends_at)
     )) problem = "This employee has an overlapping shift in this or an adjacent week.";
     if (employee) {
+      const proposed = { employee_id: employee, starts_at: startsAt, ends_at: endsAt };
+      if (timeOffConflict(proposed, timeOff)) problem = "Hard conflict: this employee has approved time off. Choose another employee or time.";
+      availabilityAdvisory = availabilityWarning(proposed, availability, availabilityTimezone);
       projected = hoursInWeek(
         peers.filter((peer) => peer.id !== slot?.id && peer.employee_id === employee).concat({
           id: slot?.id || "preview",
@@ -606,6 +635,7 @@ function SlotForm({
         <label>Start DST choice<select name="start_choice" value={startChoice} onChange={(event) => setStartChoice(event.target.value as typeof startChoice)}><option value="reject">Ask for repeated hour</option><option value="earlier">Earlier occurrence</option><option value="later">Later occurrence</option></select></label>
         <label>End DST choice<select name="end_choice" value={endChoice} onChange={(event) => setEndChoice(event.target.value as typeof endChoice)}><option value="reject">Ask for repeated hour</option><option value="earlier">Earlier occurrence</option><option value="later">Later occurrence</option></select></label>
         <label className="slot-notes">Note visible after publication<textarea name="notes" defaultValue={slot?.notes || ""} maxLength={300} rows={2} /></label>
+        {availabilityAdvisory && <p className="inline-warning">Availability advisory: outside this employee’s stated preferences. You may save this assignment.</p>}
         {problem ? <p className="inline-warning" role="alert">{problem}</p> : <p className={projected > warning ? "inline-warning" : "muted"}>{duration.toFixed(1)} actual hours{employee ? ` · ${projected.toFixed(1)} projected weekly hours` : " · unassigned slot"}</p>}
         <button className="button primary" disabled={!!problem}>{slot ? "Save one-off slot" : "Add one-off slot"}</button>
       </fieldset>

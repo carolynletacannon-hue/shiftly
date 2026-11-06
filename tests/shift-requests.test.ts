@@ -146,7 +146,7 @@ test("shift transfers enforce consent, tenant permissions, revisions and single 
   r = await cmd("coverage", { shift_id: a });
   await db.exec("reset role");
   await db.query(
-    "insert into public.employee_time_off(organization_id,employee_id,starts_at,ends_at,status)values($1,$2,'2030-01-07T07:00Z','2030-01-07T08:00Z','approved')",
+    "insert into public.time_off_requests(organization_id,employee_id,start_date,end_date,full_day,timezone,created_by,starts_at,ends_at,status)values($1,$2,'2030-01-07','2030-01-07',false,'America/Denver',$2,'2030-01-07T07:00Z','2030-01-07T08:00Z','approved')",
     [org, users[1]],
   );
   await as(1);
@@ -156,7 +156,7 @@ test("shift transfers enforce consent, tenant permissions, revisions and single 
   );
   await db.exec("reset role");
   await db.query(
-    "delete from public.employee_time_off where organization_id=$1",
+    "delete from public.time_off_requests where organization_id=$1",
     [org],
   );
   await as(0);
@@ -168,7 +168,7 @@ test("shift transfers enforce consent, tenant permissions, revisions and single 
   // A conflicting time-off approval after consent blocks finalization.
   await db.exec("reset role");
   await db.query(
-    "insert into public.employee_time_off(organization_id,employee_id,starts_at,ends_at,status)values($1,$2,'2030-01-07T07:00Z','2030-01-07T08:00Z','approved')",
+    "insert into public.time_off_requests(organization_id,employee_id,start_date,end_date,full_day,timezone,created_by,starts_at,ends_at,status)values($1,$2,'2030-01-07','2030-01-07',false,'America/Denver',$2,'2030-01-07T07:00Z','2030-01-07T08:00Z','approved')",
     [org, users[1]],
   );
   await as(0);
@@ -178,7 +178,7 @@ test("shift transfers enforce consent, tenant permissions, revisions and single 
   );
   await db.exec("reset role");
   await db.query(
-    "delete from public.employee_time_off where organization_id=$1",
+    "delete from public.time_off_requests where organization_id=$1",
     [org],
   );
   // New overlapping draft work after consent also blocks final approval.

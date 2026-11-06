@@ -39,20 +39,6 @@ create table public.shift_request_responses (
  created_at timestamptz not null default now(), primary key(request_id,employee_id),
  foreign key(organization_id,employee_id) references public.employees(organization_id,id)
 );
--- Scheduling constraints are private to the employee and managers.
-create table public.employee_time_off (
- id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations,
- employee_id uuid not null, starts_at timestamptz not null, ends_at timestamptz not null,
- status text not null default 'pending' check(status in ('pending','approved','denied')),
- check(ends_at>starts_at), foreign key(organization_id,employee_id) references public.employees(organization_id,id)
-);
-create index employee_time_off_conflicts on public.employee_time_off(organization_id,employee_id,starts_at,ends_at) where status='approved';
-create table public.employee_weekly_availability (
- organization_id uuid not null references public.organizations, employee_id uuid not null,
- weekday integer not null check(weekday between 0 and 6), start_time time not null, end_time time not null,
- primary key(organization_id,employee_id,weekday), check(end_time>start_time),
- foreign key(organization_id,employee_id) references public.employees(organization_id,id)
-);
 create table public.shift_notifications (
  id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations,
  user_id uuid not null references public.profiles, request_id uuid not null references public.shift_requests,
@@ -68,20 +54,12 @@ grant select on public.shift_requests to authenticated;
 alter table public.shift_request_responses enable row level security;
 revoke all on public.shift_request_responses from public,anon,authenticated;
 grant select on public.shift_request_responses to authenticated;
-alter table public.employee_time_off enable row level security;
-revoke all on public.employee_time_off from public,anon,authenticated;
-grant select on public.employee_time_off to authenticated;
-alter table public.employee_weekly_availability enable row level security;
-revoke all on public.employee_weekly_availability from public,anon,authenticated;
-grant select on public.employee_weekly_availability to authenticated;
 alter table public.shift_notifications enable row level security;
 revoke all on public.shift_notifications from public,anon,authenticated;
 grant select on public.shift_notifications to authenticated;
 create policy policy_read on public.shift_coverage_policies for select to authenticated using(public.workspace_role_for(organization_id) is not null);
 create policy requests_read on public.shift_requests for select to authenticated using(public.workspace_role_for(organization_id) is not null);
 create policy responses_read on public.shift_request_responses for select to authenticated using(public.workspace_role_for(organization_id) in ('owner','manager') or employee_id in (select id from public.employees where user_id=(select auth.uid()) and organization_id=shift_request_responses.organization_id));
-create policy time_off_read on public.employee_time_off for select to authenticated using(public.workspace_role_for(organization_id) in ('owner','manager') or employee_id in (select id from public.employees where user_id=(select auth.uid()) and organization_id=employee_time_off.organization_id));
-create policy availability_read on public.employee_weekly_availability for select to authenticated using(public.workspace_role_for(organization_id) in ('owner','manager') or employee_id in (select id from public.employees where user_id=(select auth.uid()) and organization_id=employee_weekly_availability.organization_id));
 create policy notifications_read on public.shift_notifications for select to authenticated using(user_id=(select auth.uid()) and public.workspace_role_for(organization_id) is not null);
 
 -- Internal validation works on UTC instants; availability uses publication timezone.
@@ -91,7 +69,7 @@ language sql stable set search_path='' as $$
  when not exists(select 1 from public.employees e join public.memberships m on m.organization_id=e.organization_id and m.user_id=e.user_id where e.organization_id=org and e.id=employee) then 'Employee is not eligible'
  when exists(select 1 from public.published_shifts s where s.organization_id=org and s.employee_id=employee and not(s.id=any(excluded)) and s.starts_at<ends and starts<s.ends_at) then 'Overlapping published shift'
  when exists(select 1 from public.shifts s where s.organization_id=org and s.employee_id=employee and not(s.id=any(excluded)) and s.starts_at<ends and starts<s.ends_at) then 'Overlapping draft shift'
- when exists(select 1 from public.employee_time_off t where t.organization_id=org and t.employee_id=employee and t.status='approved' and t.starts_at<ends and starts<t.ends_at) then 'Approved time off'
+ when exists(select 1 from public.time_off_requests t where t.organization_id=org and t.employee_id=employee and t.status='approved' and t.starts_at<ends and starts<t.ends_at) then 'Approved time off'
  else null end
 $$;
 revoke all on function shiftly_private.transfer_conflict(uuid,uuid,timestamptz,timestamptz,uuid[]) from public,anon,authenticated;
@@ -225,7 +203,12 @@ begin
  if failure is null and b.id is not null then failure:=shiftly_private.transfer_conflict(org,a.employee_id,b.starts_at,b.ends_at,array[a.id,b.id]); end if;
  select coalesce(sum(extract(epoch from (least(s.ends_at,week_end)-greatest(s.starts_at,week_start)))/3600),0) into hours from public.published_shifts s where s.organization_id=org and s.employee_id=transfer_preview.employee_id and s.id<>a.id and (b.id is null or s.id<>b.id) and s.starts_at<week_end and s.ends_at>week_start;
  hours:=hours+extract(epoch from (least(a.ends_at,week_end)-greatest(a.starts_at,week_start)))/3600;
- warning:=exists(select 1 from public.employee_weekly_availability v where v.organization_id=org and v.employee_id=transfer_preview.employee_id) and not exists(select 1 from public.employee_weekly_availability v where v.organization_id=org and v.employee_id=transfer_preview.employee_id and v.weekday=extract(dow from a.starts_at at time zone tz) and (a.starts_at at time zone tz)::time>=v.start_time and (a.ends_at at time zone tz)::date=(a.starts_at at time zone tz)::date and (a.ends_at at time zone tz)::time<=v.end_time);
+ warning:=exists(
+  select 1 from generate_series((a.starts_at at time zone tz)::date::timestamp,((a.ends_at-interval '1 microsecond') at time zone tz)::date::timestamp,interval '1 day') day
+  join public.employee_availability v on v.organization_id=org and v.employee_id=transfer_preview.employee_id and v.weekday=extract(dow from day)
+  where v.unavailable or (greatest(a.starts_at,day at time zone tz) at time zone tz)::time<v.start_time
+    or ((least(a.ends_at,(day+interval '1 day') at time zone tz)-interval '1 microsecond') at time zone tz)::time>=v.end_time
+ );
  return jsonb_build_object('eligible',failure is null,'conflict',case when manager then failure else case when failure is not null then 'Scheduling conflict' end end,'weekly_hours',hours,'availability_warning',warning,'hours_warning',hours>coalesce((select weekly_hours_warning from public.schedule_settings where organization_id=org),40));
 end $$;
 create function public.transfer_preview(org uuid,shift_id uuid,employee_id uuid,other_shift_id uuid default null) returns jsonb

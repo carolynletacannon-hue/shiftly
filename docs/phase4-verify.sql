@@ -1,6 +1,6 @@
 -- Read-only release checks. Run after applying the complete Phase 4 migration.
 select tablename,rowsecurity from pg_tables where schemaname='public' and tablename in
- ('shift_coverage_policies','shift_requests','shift_request_responses','employee_time_off','employee_weekly_availability','shift_notifications','shift_email_deliveries') order by tablename;
+ ('shift_coverage_policies','shift_requests','shift_request_responses','shift_notifications','shift_email_deliveries') order by tablename;
 select n.nspname,p.proname,p.prosecdef,p.proconfig from pg_proc p join pg_namespace n on n.oid=p.pronamespace
  where p.proname in ('shift_request_command','transfer_preview','claim_shift_emails','queue_shift_email');
 select has_table_privilege('authenticated','public.shift_requests','INSERT') as must_be_false,

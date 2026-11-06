@@ -20,6 +20,10 @@ export default async function Page({
 }) {
   const { id } = await params;
   const { db, user, role } = await requireWorkspace(id);
+  const { data: alerts, error: alertError } = await db.from("time_off_notifications").select("event")
+    .eq("organization_id", id).eq("recipient_id", user.id).in("event", ["approved", "denied"])
+    .order("created_at", { ascending: false }).limit(1);
+  if (alertError) throw Error("Unable to load time-off notifications");
   const query = await searchParams;
   const team = query.view === "team";
   const { data: org, error } = await db
@@ -101,6 +105,7 @@ export default async function Page({
     }));
   return (
     <Frame>
+      {!!alerts?.length && <p className="notice" role="status">Your most recent time-off decision: {alerts[0].event}. <Link href={`/workspaces/${id}/time-off`}>View request</Link></p>}
       <div className="page-heading">
         <div>
           <p className="eyebrow">{org.name} · PUBLISHED SHIFTS</p>
@@ -110,6 +115,7 @@ export default async function Page({
           </p>
         </div>
         <div className="schedule-tools">
+          <Link className="button secondary" href={`/workspaces/${id}/time-off`}>Time off & availability</Link>
           <Link className="button secondary" href={`/workspaces/${id}`}>
             Workspace
           </Link>

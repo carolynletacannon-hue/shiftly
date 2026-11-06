@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "feat/phase3-time-off": false,
+      "feat/phase4-shift-requests": false
+    }
+  }
+}

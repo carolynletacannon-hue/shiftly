@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { availabilityWarning } from "@/lib/time-off/conflicts";
+import type { Availability } from "@/lib/time-off/types";
 import { Frame, Message } from "@/app/components";
 import { requireWorkspace } from "@/lib/auth";
 import { shiftLabel } from "@/lib/scheduling/time";
@@ -52,6 +54,8 @@ export default async function Page({
     throw Error(
       "Unable to load shift requests. Verify the Phase 4 migration is installed.",
     );
+  const {data: availability,error: availabilityError}=await db.from("employee_availability").select("employee_id,weekday,unavailable,start_time,end_time").eq("organization_id",id);
+  if(availabilityError)throw Error("Unable to load availability");
   const me = roster.data?.find((e) => e.user_id === user.id)?.id;
   const previews = new Map<
     string,
@@ -78,6 +82,7 @@ export default async function Page({
           other_shift_id: r.other_shift_id,
         });
         if (error) throw Error("Unable to check transfer eligibility");
+        data.availability_warning=availabilityWarning({employee_id:manager?r.replacement_employee:me,starts_at:r.source_snapshot.starts_at,ends_at:r.source_snapshot.ends_at},(availability||[]) as Availability[],r.source_timezone);
         previews.set(r.id, data);
       }),
   );

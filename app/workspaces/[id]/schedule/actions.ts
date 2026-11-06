@@ -146,6 +146,7 @@ export async function scheduleAction(
     if (error) {
       const safe = [
         "Stale revision",
+        "Approved time off",
         "Employee has overlapping",
         "Shift must start",
         "No unpublished changes",

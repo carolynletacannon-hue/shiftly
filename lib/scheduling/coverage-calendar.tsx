@@ -1,14 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { addDays, hoursInWeek, localDate, shiftLabel } from "./time";
+import { addDays, hoursInWeek, localDate, localToInstant, shiftLabel } from "./time";
+import type { TimeOff, Availability } from "../time-off/types";
+import { timeOffConflict, availabilityWarning } from "../time-off/conflicts";
 import type { Member, Shift } from "./types";
 
 export function CoverageCalendar({
   shifts,
+  readOnly = false,
+  timeOff,
+  availability,
   members,
   week,
   timezone,
+  availabilityTimezone = timezone,
   peers,
   carryIn = [],
   warning,
@@ -18,6 +24,10 @@ export function CoverageCalendar({
   onEdit,
 }: {
   shifts: Shift[];
+  readOnly?: boolean;
+  availabilityTimezone?: string;
+  timeOff: TimeOff[];
+  availability: Availability[];
   members: Member[];
   week: string;
   timezone: string;
@@ -80,13 +90,23 @@ export function CoverageCalendar({
               </span>
             </header>
             <div className="coverage-slot-list">
+              {timeOff.filter(r => r.status === "approved" &&
+                Date.parse(r.starts_at) < Date.parse(localToInstant(`${addDays(day, 1)}T00:00`, timezone, "earlier")) &&
+                Date.parse(r.ends_at) > Date.parse(localToInstant(`${day}T00:00`, timezone, "earlier"))).map(r =>
+                <div className="approved-time-off" key={r.id}><strong>{members.find(m => m.id === r.employee_id)?.name || "Employee"}</strong><br />Approved time off · {r.full_day ? "Full day" : shiftLabel(r.starts_at, r.ends_at, timezone)}</div>
+              )}
               {daySlots.map((slot) => {
                 const assigned = members.find((member) => member.id === slot.employee_id);
                 const isOpen = openId === slot.id;
                 const review = isOpen ? warnings(slot) : { overlap: false, hours: 0 };
+                const hardConflict = timeOffConflict(slot, timeOff);
+                const advisory = availabilityWarning(slot, availability, availabilityTimezone);
+                const proposed = { ...slot, employee_id: employeeId || null };
+                const proposedHard = isOpen && timeOffConflict(proposed, timeOff);
+                const proposedAdvisory = isOpen && availabilityWarning(proposed, availability, availabilityTimezone);
                 return (
                   <article
-                    className={`coverage-slot ${slot.employee_id ? "covered" : "unassigned"}`}
+                    className={`coverage-slot ${slot.employee_id ? "covered" : "unassigned"} ${hardConflict ? "has-conflict" : ""}`}
                     key={slot.id}
                   >
                     <button
@@ -115,6 +135,8 @@ export function CoverageCalendar({
                         {assigned?.name || "Assign an employee"}
                       </span>
                     </button>
+                    {hardConflict && <p className="hard-conflict">Hard conflict · approved time off</p>}
+                    {advisory && <p className="inline-warning">Availability advisory</p>}
                     {isOpen && (
                       <div
                         className="assignment-popover"
@@ -147,16 +169,13 @@ export function CoverageCalendar({
                             Projects {review.hours.toFixed(1)} hours this week, above the {warning}-hour review guideline.
                           </p>
                         )}
-                        {employeeId && (
-                          <p className="availability-note">
-                            Availability is not recorded in Shiftly yet; confirm any personal constraints.
-                          </p>
-                        )}
+                        {proposedHard && <p className="hard-conflict" role="alert">Hard conflict: approved time off. Choose another employee.</p>}
+                        {proposedAdvisory && <p className="inline-warning">Availability advisory: outside stated preferences. You may save this assignment.</p>}
                         <div className="popover-actions">
                           <button
                             type="button"
                             className="button primary"
-                            disabled={pending || review.overlap || employeeId === (slot.employee_id || "")}
+                            disabled={pending || proposedHard || review.overlap || employeeId === (slot.employee_id || "")}
                             onClick={() => {
                               onAssign(slot, employeeId);
                               setOpenId(null);
@@ -185,11 +204,11 @@ export function CoverageCalendar({
                   </article>
                 );
               })}
-              {!daySlots.length && <p className="empty-day">No coverage slots</p>}
+              {!readOnly && !daySlots.length && <p className="empty-day">No coverage slots</p>}
             </div>
-            <button type="button" className="add-one-off" onClick={() => onAdd(day)}>
+            {!readOnly && <button type="button" className="add-one-off" onClick={() => onAdd(day)}>
               + One-off slot
-            </button>
+            </button>}
           </section>
         );
       })}

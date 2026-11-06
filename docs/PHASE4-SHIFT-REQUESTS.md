@@ -2,12 +2,12 @@
 
 Do not merge or deploy this branch until the migration is applied and verified on the intended Supabase project. No production migration is applied by the implementation task.
 
-Exact additive migration: `supabase/migrations/20261106000000_shift_requests.sql`.
+Exact additive migration: `supabase/migrations/20261106013000_shift_requests.sql`.
 
 ## Before applying
 
-1. Confirm the target project and take a recoverable database backup. Confirm its migration history contains all six preceding repository migrations, ending with `20261105060100_reconcile_weekly_setup.sql`.
-2. Compare the target schema with this checkout. This baseline has **no existing time-off or weekly availability persistence**. Phase 4 introduces `employee_time_off` and `employee_weekly_availability` for conflict validation. If the target has another time-off/availability implementation, stop and integrate those authoritative records before rollout; do not maintain parallel sources. These tables do not replace or delete any existing records. This PR does not introduce separate time-off setup screens.
+1. Confirm the target project and take a recoverable database backup. Confirm its migration history contains all seven preceding repository migrations, ending with `20261106001914_phase3_time_off_availability.sql`.
+2. Verify Phase 3 tables `time_off_requests` and `employee_availability` exist. Phase 4 reads these authoritative records directly and preserves all requests, weekly availability, existing RLS, email infrastructure, and print functionality. No parallel constraint storage is introduced.
 3. Apply the full migration to a disposable/staging database first, then run the automated suite against the repository. Its Postgres harness replays every migration on a clean database.
 4. The migration checks the current publisher's implementation before replacing its assigned-only filter with inclusion of published open slots. If that guard fails, the entire migration rolls back. Review the changed publisher; do not remove the guard blindly.
 
@@ -30,7 +30,7 @@ Alternatively run the **complete exact SQL file** in the intended project's SQL 
 
 ## Verify before merge/deploy
 
-Run `docs/phase4-verify.sql` in the target's SQL editor. Confirm RLS is enabled on all seven new public tables, anonymous/member direct mutation and queue access are denied, all private privileged functions use an empty search path, and the default policy is manager approval (absence of a workspace policy row also means manager approval). Run Supabase's security advisors and review new findings.
+Run `docs/phase4-verify.sql` in the target's SQL editor. Confirm RLS is enabled on all five new public tables, anonymous/member direct mutation and queue access are denied, all private privileged functions use an empty search path, and the default policy is manager approval (absence of a workspace policy row also means manager approval). Run Supabase's security advisors and review new findings.
 
 Use synthetic staging accounts in two businesses to check:
 
@@ -58,7 +58,7 @@ All request commands serialize on the same business row lock used by schedule pu
 
 Request rows preserve original/replacement identities, original published snapshots, policy version, consent identity/time, approver/time, finalization time and whether manager approval was used. Published revision events reuse the existing immutable event mechanism. Direct authenticated mutations of request/audit/notification tables are not granted.
 
-Future time-off approval/availability mutation endpoints must use the same organization lock and enforce organization-scoped authorization. This branch exposes no direct client writes to these constraint tables.
+Existing Phase 3 time-off and availability commands already share the organization lock. Their authorization and assignment/publication triggers are preserved.
 
 ## Recovery
 
