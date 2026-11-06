@@ -817,8 +817,8 @@ test("persistent scheduling authorization, publication and concurrency on Postgr
               [coverage.id],
             )
           ).count,
-          2,
-          "only assigned slots are employee-visible",
+          3,
+          "published open slots are visible for coverage requests",
         );
         await as(2);
         assert.equal(
@@ -828,7 +828,7 @@ test("persistent scheduling authorization, publication and concurrency on Postgr
               [coverage.id],
             )
           ).rows.length,
-          2,
+          3,
         );
         assert.equal(
           (

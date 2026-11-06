@@ -1,8 +1,15 @@
 import Link from "next/link";
+import { requestAction } from "../shift-requests/actions";
 import { cookies } from "next/headers";
 import { Frame, Input, Message } from "@/app/components";
 import { requireWorkspace } from "@/lib/auth";
-import { updateWorkspace, invite, resend, revoke, changeRole } from "../../actions";
+import {
+  updateWorkspace,
+  invite,
+  resend,
+  revoke,
+  changeRole,
+} from "../../actions";
 import { invitationUrl } from "@/lib/invitations";
 import { CopyInvitation } from "../../copy-invitation";
 export const runtime = "nodejs";
@@ -27,6 +34,11 @@ export default async function Page({
       db.from("positions").select("id,name").eq("organization_id", id),
     ]);
   if (error || !org) throw new Error("Unable to load workspace");
+  const { data: coveragePolicy } = await db
+    .from("shift_coverage_policies")
+    .select("*")
+    .eq("organization_id", id)
+    .maybeSingle();
   const admin = ["owner", "manager"].includes(role);
   const { data: invitations, error: invitationsError } = admin
     ? await db
@@ -41,14 +53,26 @@ export default async function Page({
   if (query.invited && raw) {
     try {
       const saved = JSON.parse(raw);
-      if (admin && saved.id === id && saved.userId === user.id &&
-          invitations?.some(i => i.id === saved.invitationId && !i.accepted_at && !i.revoked_at && new Date(i.expires_at).getTime() > Date.now())) {
-        invitationLink = invitationUrl(saved.token) || "/invite?token=" + saved.token;
-        deliveryMessage = saved.delivery === "accepted"
-          ? "The email provider accepted the invitation email for delivery. You can also copy the link below."
-          : saved.delivery === "failed"
-            ? "Invitation created, but email acceptance could not be confirmed. Copy the link below or resend after one minute."
-            : "Invitation created. Email delivery is not configured. Copy the link below to share it manually.";
+      if (
+        admin &&
+        saved.id === id &&
+        saved.userId === user.id &&
+        invitations?.some(
+          (i) =>
+            i.id === saved.invitationId &&
+            !i.accepted_at &&
+            !i.revoked_at &&
+            new Date(i.expires_at).getTime() > Date.now(),
+        )
+      ) {
+        invitationLink =
+          invitationUrl(saved.token) || "/invite?token=" + saved.token;
+        deliveryMessage =
+          saved.delivery === "accepted"
+            ? "The email provider accepted the invitation email for delivery. You can also copy the link below."
+            : saved.delivery === "failed"
+              ? "Invitation created, but email acceptance could not be confirmed. Copy the link below or resend after one minute."
+              : "Invitation created. Email delivery is not configured. Copy the link below to share it manually.";
       }
     } catch {}
   }
@@ -79,6 +103,44 @@ export default async function Page({
       </nav>
       <div className="two-col">
         <section className="panel workspace-card">
+          {admin && (
+            <>
+              <h2>Shift Coverage</h2>
+              <form action={requestAction} className="account-form">
+                <input type="hidden" name="organization_id" value={id} />
+                <input type="hidden" name="command" value="policy" />
+                <input
+                  type="hidden"
+                  name="revision"
+                  value={coveragePolicy?.revision ?? 1}
+                />
+                <label>
+                  Shift swap and coverage approval policy
+                  <select
+                    name="require_manager"
+                    defaultValue={String(
+                      coveragePolicy?.require_manager ?? true,
+                    )}
+                  >
+                    <option value="true">
+                      Require manager approval (default)
+                    </option>
+                    <option value="false">
+                      Allow employee-managed coverage
+                    </option>
+                  </select>
+                </label>
+                <p>
+                  Changing this setting never automatically approves pending
+                  requests.
+                </p>
+                <button className="button primary">Save coverage policy</button>
+              </form>
+              <Link href={`/workspaces/${id}/shift-requests`}>
+                Shift Requests
+              </Link>
+            </>
+          )}
           <h2>Business settings</h2>
           {role === "owner" ? (
             <form className="account-form" action={updateWorkspace}>
@@ -152,12 +214,13 @@ export default async function Page({
         <section className="panel workspace-card invitation-panel">
           <h2>Invite a teammate</h2>
           <p>
-            Send a private invitation to your teammate. Invitations expire after seven days.
-            You can also copy the link to share it manually.
+            Send a private invitation to your teammate. Invitations expire after
+            seven days. You can also copy the link to share it manually.
           </p>
           {invitationLink && (
             <div role="status" className="notice">
-              <div><p>{deliveryMessage}</p>
+              <div>
+                <p>{deliveryMessage}</p>
                 <CopyInvitation link={invitationLink} />
               </div>
             </div>
@@ -175,7 +238,11 @@ export default async function Page({
             <button className="button primary">Send Invitation</button>
           </form>
           <h3>Invitations</h3>
-          {invitationsError && <p role="alert">Unable to load invitations. Refresh to try again.</p>}
+          {invitationsError && (
+            <p role="alert">
+              Unable to load invitations. Refresh to try again.
+            </p>
+          )}
           {invitations?.map((i) => (
             <article className="member-row" key={i.id}>
               <strong>{i.email}</strong>
@@ -189,13 +256,17 @@ export default async function Page({
                       ? "Expired"
                       : "Pending"}
               </span>
-              {!i.accepted_at && !i.revoked_at && (role === "owner" || i.role === "employee") && (
-                <form action={resend}>
-                  <input type="hidden" name="organization_id" value={id} />
-                  <input type="hidden" name="invitation_id" value={i.id} />
-                  <button className="button secondary">Resend invitation</button>
-                </form>
-              )}
+              {!i.accepted_at &&
+                !i.revoked_at &&
+                (role === "owner" || i.role === "employee") && (
+                  <form action={resend}>
+                    <input type="hidden" name="organization_id" value={id} />
+                    <input type="hidden" name="invitation_id" value={i.id} />
+                    <button className="button secondary">
+                      Resend invitation
+                    </button>
+                  </form>
+                )}
               {!i.accepted_at && !i.revoked_at && (
                 <form action={revoke}>
                   <input type="hidden" name="organization_id" value={id} />

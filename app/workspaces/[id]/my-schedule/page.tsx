@@ -67,7 +67,7 @@ export default async function Page({
   ]);
   if (publicationError || rosterError)
     throw Error("Unable to load published schedule");
-  const employeeId = roster?.find(m => m.user_id === user.id)?.id;
+  const employeeId = roster?.find((m) => m.user_id === user.id)?.id;
   const timezone = publication?.timezone || org.timezone;
   const bounds = weekBounds(week, timezone);
   const [
@@ -101,8 +101,7 @@ export default async function Page({
     .map((m) => ({
       id: m.id,
       role: "employee",
-      name:
-        m.display_name,
+      name: m.display_name,
     }));
   return (
     <Frame>
@@ -131,6 +130,7 @@ export default async function Page({
         </div>
       </div>
       <nav className="schedule-tabs" aria-label="Published schedule view">
+        <Link href={`/workspaces/${id}/shift-requests`}>Shift Requests</Link>
         <Link
           aria-current={!team ? "page" : undefined}
           href={`?week=${week}&view=mine`}
@@ -239,6 +239,14 @@ export default async function Page({
                   </strong>
                   <p>{s.position_name}</p>
                   {s.notes && <p>{s.notes}</p>}
+                  {new Date(s.starts_at).getTime() > Date.now() && (
+                    <Link
+                      className="button secondary"
+                      href={`/workspaces/${id}/shift-requests?shift=${s.id}`}
+                    >
+                      Request Coverage or Swap
+                    </Link>
+                  )}
                 </article>
               ))}
             </div>

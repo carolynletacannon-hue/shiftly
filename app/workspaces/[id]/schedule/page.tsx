@@ -163,6 +163,8 @@ export async function SchedulingPage({
           </p>
         </div>
         <div className="schedule-tools">
+          <Link className="button secondary" href={`/workspaces/${id}/shift-requests`}>Shift Requests</Link>
+          <Link className="button secondary" href={`/workspaces/${id}/admin`}>Manager Settings</Link>
           <Link className="button secondary" href={`/workspaces/${id}/weekly-setup`}>Set Up Weekly Schedule</Link>
           <Link className="button secondary" href={`/workspaces/${id}/schedule${advanced ? "" : "/settings"}`}>{advanced ? "Weekly calendar" : "Advanced settings"}</Link>
           <Link className="button secondary" href={`/workspaces/${id}/time-off`}>Time-Off Requests{pendingCount ? ` (${pendingCount} pending)` : ""}</Link>
