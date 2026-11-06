@@ -15,7 +15,6 @@ export default async function Page({
     { data: roster, error: rosterError },
     { data: requests, error: requestError },
     { data: availability, error: availabilityError },
-    { data: notifications, error: notificationError },
   ] = await Promise.all([
     db.from("organizations").select("name,timezone").eq("id", id).single(),
     db
@@ -29,22 +28,8 @@ export default async function Page({
       .eq("organization_id", id)
       .order("created_at", { ascending: false }),
     db.from("employee_availability").select("*").eq("organization_id", id),
-    db
-      .from("time_off_notifications")
-      .select("id,event,request_id")
-      .eq("organization_id", id)
-      .eq("recipient_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(5),
   ]);
-  if (
-    orgError ||
-    rosterError ||
-    requestError ||
-    availabilityError ||
-    notificationError ||
-    !org
-  )
+  if (orgError || rosterError || requestError || availabilityError || !org)
     throw Error(
       "Unable to load time off. Check that the Phase 3 migration is applied, then retry.",
     );
@@ -82,20 +67,6 @@ export default async function Page({
           </p>
         </div>
       </div>
-      {!!notifications?.length && (
-        <details className="panel workspace-card">
-          <summary>Recent notifications ({notifications.length})</summary>
-          <ul>
-            {notifications.map((n) => (
-              <li key={n.id}>
-                {n.event === "submitted"
-                  ? "A time-off request was submitted. Review requests below."
-                  : `Your time-off request was ${n.event}. See its dates and status below.`}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
       <TimeOffScreen
         org={id}
         timezone={org.timezone}

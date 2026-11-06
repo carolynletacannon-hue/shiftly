@@ -5,7 +5,8 @@
       "feat/phase3-time-off": false,
       "feat/phase4-shift-requests": false,
       "feat/phase5-shared-shifts": false,
-      "feat/employee-lifecycle-navigation": false
+      "feat/employee-lifecycle-navigation": false,
+      "feat/phase7-actionable-notifications": false
     }
   }
 }

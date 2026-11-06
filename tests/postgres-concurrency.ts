@@ -202,9 +202,13 @@ test("PostgreSQL multi-session locks serialize cross-week assignment, time off, 
       );
     };
     // Copy confirmation waits on the same organization lock and rejects stale previews.
-    const copy = async (client: Client, token: string | null = null) => (
-      await client.query("select public.copy_schedule_week($1,'2030-01-06','2030-02-03','all','merge',$2) r", [org, token])
-    ).rows[0].r;
+    const copy = async (client: Client, token: string | null = null) =>
+      (
+        await client.query(
+          "select public.copy_schedule_week($1,'2030-01-06','2030-02-03','all','merge',$2) r",
+          [org, token],
+        )
+      ).rows[0].r;
     const copyPreview = await copy(setup);
     await one.query("begin");
     await copy(one, copyPreview.token);
@@ -213,7 +217,15 @@ test("PostgreSQL multi-session locks serialize cross-week assignment, time off, 
     await waitForLock();
     await one.query("commit");
     await copyFailure;
-    assert.equal((await setup.query("select count(*)::int n from public.schedules where organization_id=$1 and week_start='2030-02-03'", [org])).rows[0].n, 1);
+    assert.equal(
+      (
+        await setup.query(
+          "select count(*)::int n from public.schedules where organization_id=$1 and week_start='2030-02-03'",
+          [org],
+        )
+      ).rows[0].n,
+      1,
+    );
     const affected = (
       await setup.query(
         "select id from public.shifts where shift_group_id=$1 and employee_id=$2",
@@ -352,6 +364,65 @@ test("PostgreSQL multi-session locks serialize cross-week assignment, time off, 
     assert.equal(
       after.every((row) => row.required_count === 2),
       true,
+    );
+    // Phase 7 outbox claims must remain disjoint while another worker holds
+    // row locks, and a recovered lease must fence the previous worker's token.
+    await setup.query("reset role");
+    await setup.query("update public.shift_email_deliveries set attempts=5");
+    for (let i = 0; i < 20; i++)
+      await setup.query(
+        "select shiftly_private.notify($1::uuid,$2::uuid,'schedule_change',$3::text,'Concurrency fixture','/workspaces/'||$1::uuid::text||'/notifications')",
+        [org, users[0], `concurrent-fixture:${i}`],
+      );
+    const workerOne = await connect("phase7-email-worker-one");
+    const workerTwo = await connect("phase7-email-worker-two");
+    await workerOne.query("begin");
+    const firstBatch = (
+      await workerOne.query("select * from public.claim_shift_emails()")
+    ).rows;
+    assert.equal(firstBatch.length, 10);
+    await workerTwo.query("begin");
+    const secondBatch = (
+      await workerTwo.query("select * from public.claim_shift_emails()")
+    ).rows;
+    assert.equal(secondBatch.length, 10);
+    assert.equal(
+      new Set([...firstBatch, ...secondBatch].map((row) => row.id)).size,
+      20,
+    );
+    await workerOne.query("commit");
+    await workerTwo.query("commit");
+    assert.equal(
+      (await setup.query("select * from public.claim_shift_emails()")).rowCount,
+      0,
+    );
+    await setup.query(
+      "update public.shift_email_deliveries set claimed_until=now()-interval '1 minute' where id=any($1::uuid[])",
+      [firstBatch.map((row) => row.id)],
+    );
+    const recovered = (
+      await workerTwo.query("select * from public.claim_shift_emails()")
+    ).rows;
+    assert.equal(recovered.length, 10);
+    assert.ok(recovered.every((row) => row.attempts === 2));
+    const stale = firstBatch[0];
+    assert.equal(
+      (
+        await workerOne.query(
+          "update public.shift_email_deliveries set sent_at=now() where id=$1 and claim_token=$2 returning id",
+          [stale.id, stale.claim_token],
+        )
+      ).rowCount,
+      0,
+    );
+    assert.equal(
+      (
+        await setup.query(
+          "select public.notification_email_eligible($1,$2) eligible",
+          [stale.id, stale.claim_token],
+        )
+      ).rows[0].eligible,
+      false,
     );
   } finally {
     for (const client of clients) {

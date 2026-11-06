@@ -15,41 +15,31 @@ export default async function Page({
   const query = await searchParams;
   const { db, user, role } = await requireWorkspace(id);
   const manager = role !== "employee";
-  const [org, policy, roster, shifts, requests, notifications] =
-    await Promise.all([
-      db.from("organizations").select("name,timezone").eq("id", id).single(),
-      db
-        .from("shift_coverage_policies")
-        .select("*")
-        .eq("organization_id", id)
-        .maybeSingle(),
-      db
-        .from("employees")
-        .select("id,user_id,display_name")
-        .eq("organization_id", id),
-      db
-        .from("published_shifts")
-        .select("*,published_schedules(timezone)")
-        .eq("organization_id", id)
-        .gt("starts_at", new Date().toISOString())
-        .order("starts_at"),
-      db
-        .from("shift_requests")
-        .select("*")
-        .eq("organization_id", id)
-        .order("created_at", { ascending: false })
-        .limit(100),
-      db
-        .from("shift_notifications")
-        .select("id,message,created_at")
-        .eq("organization_id", id)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(10),
-    ]);
-  if (
-    [org, policy, roster, shifts, requests, notifications].some((x) => x.error)
-  )
+  const [org, policy, roster, shifts, requests] = await Promise.all([
+    db.from("organizations").select("name,timezone").eq("id", id).single(),
+    db
+      .from("shift_coverage_policies")
+      .select("*")
+      .eq("organization_id", id)
+      .maybeSingle(),
+    db
+      .from("employees")
+      .select("id,user_id,display_name")
+      .eq("organization_id", id),
+    db
+      .from("published_shifts")
+      .select("*,published_schedules(timezone)")
+      .eq("organization_id", id)
+      .gt("starts_at", new Date().toISOString())
+      .order("starts_at"),
+    db
+      .from("shift_requests")
+      .select("*")
+      .eq("organization_id", id)
+      .order("created_at", { ascending: false })
+      .limit(100),
+  ]);
+  if ([org, policy, roster, shifts, requests].some((x) => x.error))
     throw Error(
       "Unable to load shift requests. Verify the Phase 4 migration is installed.",
     );
@@ -247,7 +237,7 @@ export default async function Page({
         </h2>
         {!requests.data?.length && <p>No requests yet.</p>}
         {requests.data?.map((r) => (
-          <article className="template-card" key={r.id}>
+          <article className="template-card" id={`request-${r.id}`} key={r.id}>
             <h3>
               {r.kind} · {r.status}
             </h3>
@@ -302,6 +292,9 @@ export default async function Page({
               {["open", "pending"].includes(r.status) &&
                 r.requester === user.id &&
                 action("cancel", "Cancel request", r.id)}
+              {r.status === "pending" &&
+                r.accepted_by === user.id &&
+                action("withdraw", "Withdraw offer", r.id)}
               {manager &&
                 r.status === "pending" &&
                 previews.get(r.id)?.eligible &&
@@ -322,12 +315,6 @@ export default async function Page({
               </p>
             )}
           </article>
-        ))}
-      </section>
-      <section className="panel workspace-card">
-        <h2 id="notifications">Notifications</h2>
-        {notifications.data?.map((n) => (
-          <p key={n.id}>{n.message}</p>
         ))}
       </section>
     </Frame>
