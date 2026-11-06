@@ -1123,11 +1123,13 @@ function SlotForm({
               onChange={(event) => setEmployee(event.target.value)}
             >
               <option value="">Leave unassigned</option>
-              {members.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.name}
-                </option>
-              ))}
+              {members
+                .filter((member) => !member.archived)
+                .map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
+                  </option>
+                ))}
             </select>
           </label>
         )}

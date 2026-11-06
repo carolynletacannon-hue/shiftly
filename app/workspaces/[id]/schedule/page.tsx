@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Frame } from "@/app/components";
 import { requireWorkspace } from "@/lib/auth";
 import { addDays, validWeek, weekBounds } from "@/lib/scheduling/time";
@@ -65,7 +64,7 @@ export async function SchedulingPage({
       .maybeSingle(),
     db
       .from("employees")
-      .select("id,display_name,user_id")
+      .select("id,display_name,user_id,archived_at")
       .eq("organization_id", id),
     db
       .from("positions")
@@ -104,7 +103,6 @@ export async function SchedulingPage({
   const [
     { data: timeOff, error: timeOffError },
     { data: availability, error: availabilityError },
-    { count: pendingCount, error: pendingError },
   ] = await Promise.all([
     db
       .from("time_off_requests")
@@ -114,13 +112,8 @@ export async function SchedulingPage({
       .eq("organization_id", id)
       .eq("status", "approved"),
     db.from("employee_availability").select("*").eq("organization_id", id),
-    db
-      .from("time_off_requests")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", id)
-      .eq("status", "pending"),
   ]);
-  if (timeOffError || availabilityError || pendingError)
+  if (timeOffError || availabilityError)
     throw Error(
       "Unable to load time off and availability. Apply the Phase 3 migration before using this release.",
     );
@@ -161,11 +154,19 @@ export async function SchedulingPage({
         !publishedSchedules.has(s.schedule_id),
     ),
   ] as Shift[];
-  const members: Member[] = (roster || []).map((m) => ({
-    id: m.id,
-    role: "employee",
-    name: m.display_name,
-  }));
+  const visibleEmployees = new Set(
+    [...((draft?.shifts || []) as Shift[]), ...carryIn].map(
+      (shift) => shift.employee_id,
+    ),
+  );
+  const members: Member[] = (roster || [])
+    .filter((m) => !m.archived_at || visibleEmployees.has(m.id))
+    .map((m) => ({
+      id: m.id,
+      role: "employee",
+      name: m.display_name,
+      archived: !!m.archived_at,
+    }));
   return (
     <>
       <Frame workspace={{ id, role, name: org.name }}>
@@ -186,48 +187,6 @@ export async function SchedulingPage({
               See what the week needs, fill open slots, then publish when it’s
               ready.
             </p>
-          </div>
-          <div className="schedule-tools">
-            <Link
-              className="button secondary"
-              href={`/workspaces/${id}/shift-requests`}
-            >
-              Shift Requests
-            </Link>
-            <Link className="button secondary" href={`/workspaces/${id}/admin`}>
-              Manager Settings
-            </Link>
-            <Link
-              className="button secondary"
-              href={`/workspaces/${id}/weekly-setup`}
-            >
-              Set Up Weekly Schedule
-            </Link>
-            <Link
-              className="button secondary"
-              href={`/workspaces/${id}/schedule${advanced ? "" : "/settings"}`}
-            >
-              {advanced ? "Weekly calendar" : "Advanced settings"}
-            </Link>
-            <Link
-              className="button secondary"
-              href={`/workspaces/${id}/time-off`}
-            >
-              Time-Off Requests
-              {pendingCount ? ` (${pendingCount} pending)` : ""}
-            </Link>
-            <Link
-              className="button secondary"
-              href={`/workspaces/${id}/employees`}
-            >
-              Employees
-            </Link>
-            <Link
-              className="button secondary"
-              href={`/workspaces/${id}/my-schedule?week=${week}&view=team`}
-            >
-              Published team view
-            </Link>
           </div>
         </div>
         <WeekNavigation

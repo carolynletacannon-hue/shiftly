@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Frame } from "@/app/components";
 import { requireWorkspace } from "@/lib/auth";
 import { validWeek } from "@/lib/scheduling/time";
@@ -51,9 +50,6 @@ export default async function Page({
             Choose shifts, check the days, and tell us how many people you need.
           </p>
         </div>
-        <Link className="button secondary" href={`/workspaces/${id}/schedule`}>
-          Weekly calendar
-        </Link>
       </div>
       <WeeklyWizard
         key={version.data?.revision ?? 0}

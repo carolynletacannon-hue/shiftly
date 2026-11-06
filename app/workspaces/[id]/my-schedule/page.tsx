@@ -126,28 +126,8 @@ export default async function Page({
               {timezone} · Your team’s latest published version
             </p>
           </div>
-          <div className="schedule-tools">
-            <Link
-              className="button secondary"
-              href={`/workspaces/${id}/time-off`}
-            >
-              Time off & availability
-            </Link>
-            <Link className="button secondary" href={`/workspaces/${id}`}>
-              Workspace
-            </Link>
-            {role !== "employee" && (
-              <Link
-                className="button secondary"
-                href={`/workspaces/${id}/schedule?week=${week}`}
-              >
-                Manage schedule
-              </Link>
-            )}
-          </div>
         </div>
         <nav className="schedule-tabs" aria-label="Published schedule view">
-          <Link href={`/workspaces/${id}/shift-requests`}>Shift Requests</Link>
           <Link
             aria-current={!team ? "page" : undefined}
             href={`?week=${week}&view=mine`}

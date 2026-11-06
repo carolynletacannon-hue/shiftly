@@ -5,7 +5,12 @@ import type { Availability, TimeOff } from "@/lib/time-off/types";
 import { shiftLabel } from "@/lib/scheduling/time";
 import { timeOffAction } from "./actions";
 
-type Employee = { id: string; name: string; placeholder: boolean };
+type Employee = {
+  id: string;
+  name: string;
+  placeholder: boolean;
+  archived?: boolean;
+};
 const dateLabel = (date: string) =>
   new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -138,15 +143,18 @@ export function TimeOffScreen({
                 Cancel request
               </button>
             )}
-            {manager && employee?.placeholder && r.status === "approved" && (
-              <button
-                className="button secondary"
-                disabled={pending}
-                onClick={() => run("remove_manual", { id: r.id })}
-              >
-                Remove manual time off
-              </button>
-            )}
+            {manager &&
+              employee?.placeholder &&
+              !employee.archived &&
+              r.status === "approved" && (
+                <button
+                  className="button secondary"
+                  disabled={pending}
+                  onClick={() => run("remove_manual", { id: r.id })}
+                >
+                  Remove manual time off
+                </button>
+              )}
           </div>
         </article>
       );
@@ -197,7 +205,7 @@ export function TimeOffScreen({
           <summary>Enter time off for an employee without an account</summary>
           <p>This records approved time off immediately.</p>
           <RequestForm
-            employees={employees.filter((e) => e.placeholder)}
+            employees={employees.filter((e) => e.placeholder && !e.archived)}
             timezone={timezone}
             pending={pending}
             onSave={(input, done) => run("manual", input, done)}

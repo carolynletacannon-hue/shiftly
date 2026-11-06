@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { availabilityWarning } from "@/lib/time-off/conflicts";
 import type { Availability } from "@/lib/time-off/types";
 import { Frame, Message } from "@/app/components";
@@ -154,12 +153,6 @@ export default async function Page({
             You remain responsible until the status is completed.
           </p>
         </div>
-        <Link
-          className="button secondary"
-          href={`/workspaces/${id}/my-schedule`}
-        >
-          My Schedule
-        </Link>
       </div>
       <Message text={query.message} />
       {source && (

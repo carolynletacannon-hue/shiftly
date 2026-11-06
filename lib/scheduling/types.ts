@@ -28,7 +28,12 @@ export type Schedule = {
   published_at?: string;
   shifts: Shift[];
 };
-export type Member = { id: string; name: string; role: string };
+export type Member = {
+  id: string;
+  name: string;
+  role: string;
+  archived?: boolean;
+};
 export type Position = { id: string; name: string };
 export type ShiftTemplate = {
   id: string;
