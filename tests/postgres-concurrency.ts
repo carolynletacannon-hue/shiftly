@@ -201,6 +201,19 @@ test("PostgreSQL multi-session locks serialize cross-week assignment, time off, 
         "Expected the second PostgreSQL backend to wait for the organization lock",
       );
     };
+    // Copy confirmation waits on the same organization lock and rejects stale previews.
+    const copy = async (client: Client, token: string | null = null) => (
+      await client.query("select public.copy_schedule_week($1,'2030-01-06','2030-02-03','all','merge',$2) r", [org, token])
+    ).rows[0].r;
+    const copyPreview = await copy(setup);
+    await one.query("begin");
+    await copy(one, copyPreview.token);
+    const competingCopy = copy(two, copyPreview.token);
+    const copyFailure = assert.rejects(competingCopy, /Stale revision/);
+    await waitForLock();
+    await one.query("commit");
+    await copyFailure;
+    assert.equal((await setup.query("select count(*)::int n from public.schedules where organization_id=$1 and week_start='2030-02-03'", [org])).rows[0].n, 1);
     const affected = (
       await setup.query(
         "select id from public.shifts where shift_group_id=$1 and employee_id=$2",

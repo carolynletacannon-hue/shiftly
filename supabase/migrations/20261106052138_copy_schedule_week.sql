@@ -10,6 +10,8 @@ create table public.schedule_copy_audits (
  foreign key(organization_id,schedule_id) references public.schedules(organization_id,id),
  foreign key(organization_id,source_id) references public.schedules(organization_id,id)
 );
+create index schedule_copy_audits_source on public.schedule_copy_audits(organization_id,source_id);
+create index schedule_copy_audits_actor on public.schedule_copy_audits(actor_id);
 create index schedule_copy_audits_org on public.schedule_copy_audits(organization_id,schedule_id);
 alter table public.schedule_copy_audits enable row level security;
 create policy copy_audits_manager on public.schedule_copy_audits for select to authenticated
@@ -35,7 +37,7 @@ create function shiftly_private.copy_schedule_week(
  org uuid,source_week date,destination_week date,copy_mode text,strategy text,preview_token text default null
 ) returns jsonb language plpgsql security definer set search_path='' as $$
 declare
- src public.schedules; dst public.schedules; x public.shifts; g public.shift_groups; target_group uuid; group_used uuid[]:='{}'; matched uuid; assignee uuid; is_new boolean; n integer; ordinal integer; org_tz text; availability jsonb;
+ src public.schedules; dst public.schedules; x public.shifts; source_group public.shift_groups; destination_group public.shift_groups; target_group uuid; group_used uuid[]:='{}'; matched uuid; assignee uuid; is_new boolean; ordinal integer; org_tz text;
  used uuid[]:='{}'; lo timestamptz; hi timestamptz; tz text; token text; before_draft jsonb;
  result jsonb; warnings jsonb:='[]'; added integer:=0; assigned integer:=0; skipped integer:=0; removed integer:=0;
 begin
@@ -65,7 +67,7 @@ begin
  'time_off',(select jsonb_agg(to_jsonb(c) order by c.id) from public.time_off_requests c where c.organization_id=org),
  'availability',(select jsonb_agg(to_jsonb(c) order by c.employee_id,c.weekday) from public.employee_availability c where c.organization_id=org),
  'settings',(select to_jsonb(c) from public.schedule_settings c where c.organization_id=org),
- 'timezone',tz,'week',destination_week)::text) into token;
+ 'timezone',tz,'organization_timezone',org_tz,'week',destination_week)::text) into token;
  if preview_token is not null and preview_token<>token then raise exception 'Stale revision. Preview again: the schedule or employee constraints changed'; end if;
  -- Preview runs exactly the commit path in a subtransaction, then rolls it back.
  begin
@@ -78,35 +80,36 @@ begin
  get diagnostics removed=row_count;
  end if;
  -- Orphaned historical group identities remain available for snapshots and requests.
- for g in select g.* from public.shift_groups g where g.schedule_id=src.id
+ for source_group in select g.* from public.shift_groups g where g.schedule_id=src.id
  and exists(select 1 from public.shifts a where a.shift_group_id=g.id) order by g.starts_at,g.id loop
- lo:=shiftly_private.copy_week_instant(g.starts_at,destination_week-source_week,src.timezone,tz);
- hi:=shiftly_private.copy_week_instant(g.ends_at,destination_week-source_week,src.timezone,tz);
+ lo:=shiftly_private.copy_week_instant(source_group.starts_at,destination_week-source_week,src.timezone,tz);
+ hi:=shiftly_private.copy_week_instant(source_group.ends_at,destination_week-source_week,src.timezone,tz);
  target_group:=null;
  if strategy='merge' then
  select d.id into target_group from public.shift_groups d where d.schedule_id=dst.id and not(d.id=any(group_used))
  and exists(select 1 from public.shifts a where a.shift_group_id=d.id)
- and d.starts_at=lo and d.ends_at=hi and d.label=g.label and d.position_id is not distinct from g.position_id
- and (copy_mode='assignments' or (d.notes=g.notes and d.is_required=g.is_required and d.template_id is not distinct from g.template_id
- and d.required_count=g.required_count and d.allow_overstaffing=g.allow_overstaffing))
- order by (d.copy_source_group=g.id) desc nulls last,
- (select count(*) from public.shifts a join public.shifts b on a.employee_id=b.employee_id where a.shift_group_id=d.id and b.shift_group_id=g.id) desc,d.id limit 1;
+ and d.starts_at=lo and d.ends_at=hi and d.label=source_group.label and d.position_id is not distinct from source_group.position_id
+ and (copy_mode='assignments' or (d.notes=source_group.notes and d.is_required=source_group.is_required and d.template_id is not distinct from source_group.template_id
+ and d.required_count=source_group.required_count and d.allow_overstaffing=source_group.allow_overstaffing))
+ order by (d.copy_source_group=source_group.id) desc nulls last,
+ (select count(*) from public.shifts a join public.shifts b on a.employee_id=b.employee_id where a.shift_group_id=d.id and b.shift_group_id=source_group.id) desc,d.id limit 1;
  end if;
  is_new:=target_group is null;
  if is_new then
  if copy_mode='assignments' then
- warnings:=warnings||jsonb_build_array(jsonb_build_object('message','No matching destination shift; assignments skipped','label',g.label));
- skipped:=skipped+(select count(*) from public.shifts where shift_group_id=g.id and employee_id is not null); continue;
+ warnings:=warnings||jsonb_build_array(jsonb_build_object('message','No matching destination shift; assignments skipped','label',source_group.label));
+ skipped:=skipped+(select count(*) from public.shifts where shift_group_id=source_group.id and employee_id is not null); continue;
  end if;
  insert into public.shift_groups(organization_id,schedule_id,position_id,starts_at,ends_at,notes,label,requirement_id,template_id,is_required,required_count,allow_overstaffing,copy_source_group)
- values(org,dst.id,g.position_id,lo,hi,g.notes,g.label,g.requirement_id,g.template_id,g.is_required,g.required_count,g.allow_overstaffing,g.id)
+ values(org,dst.id,source_group.position_id,lo,hi,source_group.notes,source_group.label,source_group.requirement_id,source_group.template_id,source_group.is_required,source_group.required_count,source_group.allow_overstaffing,source_group.id)
  returning id into target_group;
  end if;
+ select * into strict destination_group from public.shift_groups where id=target_group;
  group_used:=array_append(group_used,target_group);
- for x in select * from public.shifts where shift_group_id=g.id order by (employee_id is null),slot_ordinal,id loop
+ for x in select * from public.shifts where shift_group_id=source_group.id order by (employee_id is null),slot_ordinal,id loop
  assignee:=case when copy_mode='structure' then null else x.employee_id end;
  if assignee is not null and exists(select 1 from public.employees where organization_id=org and id=assignee and archived_at is not null) then
- warnings:=warnings||jsonb_build_array(jsonb_build_object('message','Archived employee skipped','employee_id',assignee,'label',g.label));
+ warnings:=warnings||jsonb_build_array(jsonb_build_object('message','Archived employee skipped','employee_id',assignee,'label',source_group.label));
  assignee:=null; skipped:=skipped+1;
  end if;
  matched:=null;
@@ -119,12 +122,12 @@ begin
  if matched is null then
  if not is_new and assignee is not null and exists(select 1 from public.shift_groups d where d.id=target_group and not d.allow_overstaffing
  and (select count(*) from public.shifts where shift_group_id=target_group and employee_id is not null)>=d.required_count) then
- warnings:=warnings||jsonb_build_array(jsonb_build_object('message','Destination shift is full; assignment skipped. Review staffing or enable overstaffing','employee_id',assignee,'label',g.label)); skipped:=skipped+1; continue;
+ warnings:=warnings||jsonb_build_array(jsonb_build_object('message','Destination shift is full; assignment skipped. Review staffing or enable overstaffing','employee_id',assignee,'label',source_group.label)); skipped:=skipped+1; continue;
  end if;
  if copy_mode='assignments' and assignee is null then continue; end if;
- select coalesce(max(slot_ordinal),0)+1 into ordinal from public.shifts where schedule_id=dst.id and requirement_id is not distinct from g.requirement_id;
+ select coalesce(max(slot_ordinal),0)+1 into ordinal from public.shifts where schedule_id=dst.id and requirement_id is not distinct from destination_group.requirement_id;
  insert into public.shifts(organization_id,schedule_id,shift_group_id,employee_id,position_id,starts_at,ends_at,notes,label,requirement_id,template_id,slot_ordinal,is_required,slot_kind)
- values(org,dst.id,target_group,null,g.position_id,lo,hi,g.notes,g.label,g.requirement_id,g.template_id,ordinal,g.is_required,x.slot_kind)
+ values(org,dst.id,target_group,null,destination_group.position_id,destination_group.starts_at,destination_group.ends_at,destination_group.notes,destination_group.label,destination_group.requirement_id,destination_group.template_id,ordinal,destination_group.is_required,case when destination_group.is_required then 'requirement' else 'one_off' end)
  returning id into matched;
  added:=added+1;
  end if;
@@ -136,8 +139,8 @@ begin
  end loop;
  if (select count(*) from public.shifts where schedule_id=dst.id)>300 then raise exception 'Copy blocked: weekly shift limit of 300 exceeded'; end if;
  perform shiftly_private.validate_schedule(dst.id);
- result:=jsonb_build_object('token',token,'timezone',tz,'week',destination_week,'added',added,'assigned',assigned,'removed',removed,'skipped',skipped,'warnings',warnings,
- 'availability_timezone',org_tz,'availability',(select coalesce(jsonb_agg(to_jsonb(a)),'[]') from public.employee_availability a where a.organization_id=org),
+ result:=jsonb_build_object('token',token,'timezone',tz,'organization_timezone',org_tz,'week',destination_week,'added',added,'assigned',assigned,'removed',removed,'skipped',skipped,'warnings',warnings,
+ 'employee_names',(select jsonb_object_agg(e.id,e.display_name) from public.employees e where e.organization_id=org),'availability_timezone',org_tz,'availability',(select coalesce(jsonb_agg(to_jsonb(a)),'[]') from public.employee_availability a where a.organization_id=org),
  'published',dst.published_revision is not null,'source_revision',src.revision,'destination_revision',dst.revision,
  'shifts',(select coalesce(jsonb_agg(to_jsonb(s)||jsonb_build_object('required_count',g.required_count,'allow_overstaffing',g.allow_overstaffing) order by s.starts_at,s.id),'[]') from public.shifts s join public.shift_groups g on g.id=s.shift_group_id where s.schedule_id=dst.id),
  'hours',(select coalesce(jsonb_agg(to_jsonb(h)),'[]') from (select e.id,e.display_name,round(sum(extract(epoch from (least(s.ends_at,(destination_week+7)::timestamp at time zone tz)-greatest(s.starts_at,destination_week::timestamp at time zone tz))))/3600,2) hours
