@@ -5,9 +5,13 @@
 For an installation with the weekly-setup fix already applied, apply **only**
 [`20261106001914_phase3_time_off_availability.sql`](../supabase/migrations/20261106001914_phase3_time_off_availability.sql)
 once, before merging or deploying this release. Do not rerun earlier migrations.
-This PR stays draft until the database gate has been verified. No hosted SQL or
-deployment is performed by this change. The source commit includes `[skip vercel]`
-to skip an automatic Vercel preview build while the schema gate is outstanding.
+This PR stays draft until the database gate has been verified. No hosted SQL or production deployment is performed by this change.
+Vercel automatically created previews from the initial branch pushes despite the
+`[skip vercel]` tags. `vercel.json` now explicitly disables Git deployments for
+`feat/phase3-time-off`; other branches keep their existing settings. Keep that rule
+until the schema gate is satisfied. Existing previews require removal in Vercel;
+the connected tools cannot delete them. Do not use those previews to validate
+Phase 3 against an unmigrated database.
 
 Prerequisites, in order, for a new database:
 
