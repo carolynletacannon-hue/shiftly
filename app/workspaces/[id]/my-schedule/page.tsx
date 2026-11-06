@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { calendarEnabled } from "@/lib/calendar/token";
+import { calendarAction } from "./calendar/actions";
+import { CalendarControls } from "./calendar/controls";
 import { Frame } from "@/app/components";
 import { requireWorkspace } from "@/lib/auth";
 import { PrintSchedule } from "@/lib/scheduling/print-schedule";
@@ -73,6 +76,10 @@ export default async function Page({
   ]);
   if (publicationError || rosterError)
     throw Error("Unable to load published schedule");
+  const { data: calendarStatus, error: calendarError } = await db.rpc(
+    "manage_calendar_subscription",
+    { org: id, command: "status" },
+  );
   const employeeId = roster?.find((m) => m.user_id === user.id)?.id;
   const timezone = publication?.timezone || org.timezone;
   const bounds = weekBounds(week, timezone);
@@ -250,6 +257,14 @@ export default async function Page({
               </div>
             )}
           </section>
+        )}
+        {!team && (
+          <CalendarControls
+            action={calendarAction}
+            org={id}
+            initialActive={calendarStatus?.active === true}
+            unavailable={!!calendarError || !calendarEnabled()}
+          />
         )}
         <p className="hint">
           Hours use actual elapsed time, including daylight-saving changes, and

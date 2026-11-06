@@ -1065,3 +1065,15 @@ input::placeholder, textarea::placeholder { color: var(--text-secondary); }
   .sidebar nav { width: 100%; }
   .sidebar > a.nav-item { display: none; }
 }
+
+/* Private calendar controls share the existing light/sage theme. */
+.calendar-integration { min-width: 0; }
+.calendar-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1rem 0; }
+.calendar-actions .button { white-space: normal; }
+.calendar-link-controls { display: grid; gap: .75rem; margin: 1rem 0; min-width: 0; }
+.calendar-link-controls input { width: 100%; min-width: 0; box-sizing: border-box; }
+.calendar-link-controls button { justify-self: start; }
+.calendar-platforms { display: grid; gap: .5rem; margin: 1rem 0; }
+.calendar-platforms details { padding: .85rem; border: 1px solid var(--border); border-radius: 9px; }
+.calendar-platforms summary { cursor: pointer; font-weight: 600; color: var(--accent); }
+@media (max-width: 480px) { .calendar-actions > .button { flex: 1 1 100%; } }
