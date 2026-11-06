@@ -1,7 +1,7 @@
 export function timeOffEmail(event: string, workspaceUrl: string) {
   const subject =
     event === "submitted"
-      ? "New time-off request in Shiftly"
+      ? "New time-off request in Meadowmark"
       : `Your time-off request was ${event === "approved" ? "approved" : "denied"}`;
   // Deliberately omit names, dates and private notes from email previews.
   const text = `${subject}. Open your private workspace to view details: ${workspaceUrl}`;

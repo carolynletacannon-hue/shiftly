@@ -5,7 +5,7 @@ import "./design-system.css";
 import "./print-schedule.css";
 
 export const metadata: Metadata = {
-  title: "Shiftly | Team Scheduling",
+  title: "Meadowmark | Team Scheduling",
   description:
     "Simple scheduling, time-off requests, and shift swaps for small teams.",
 };

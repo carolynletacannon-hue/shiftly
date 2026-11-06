@@ -4,7 +4,7 @@
 
 Before merging/deploying Phase 2, apply the full contents of
 [`supabase/migrations/20261105035217_phase2_scheduling.sql`](../supabase/migrations/20261105035217_phase2_scheduling.sql)
-**once** to the existing Shiftly Supabase database. This is the only new SQL file
+**once** to the existing Meadowmark Supabase database. This is the only new SQL file
 required for Phase 2. It is wrapped in a transaction and is additive: it creates
 new scheduling tables, indexes, policies and functions, plus a composite unique
 index on existing positions. It does not alter or remove existing workspace,

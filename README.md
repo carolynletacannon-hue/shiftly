@@ -1,6 +1,6 @@
-# Shiftly
+# Meadowmark
 
-A mobile-first scheduling product for small teams. Shiftly provides Supabase authentication, multi-business workspaces, secure invitations, and persistent manager scheduling with explicit publishing and employee views. The original fictional dashboard remains at `/demo`, separate from real workspace schedules. Time-off requests, manager review, and weekly availability are supported. Swaps and calendar subscriptions are future phases.
+A mobile-first scheduling product for small teams. Meadowmark provides Supabase authentication, multi-business workspaces, secure invitations, and persistent manager scheduling with explicit publishing and employee views. The original fictional dashboard remains at `/demo`, separate from real workspace schedules. Time-off requests, manager review, and weekly availability are supported. Swaps and calendar subscriptions are future phases.
 
 ## Deploy with GitHub and Vercel
 
@@ -15,7 +15,7 @@ Never commit credentials, `.env.local`, database passwords, service-role keys or
 
 ## Apply database migrations
 
-The versioned schema is in `supabase/migrations/202611050001_workspaces.sql`. On an existing Supabase project with no Shiftly schema, the simplest hosted setup is to open Supabase → SQL Editor, paste the entire migration, and run it once. Keep a record of the applied version. Do not rerun this initial migration; future changes should be new migration files. Do not apply it over an existing conflicting schema without reviewing the differences.
+The versioned schema is in `supabase/migrations/202611050001_workspaces.sql`. On an existing Supabase project with no Meadowmark schema, the simplest hosted setup is to open Supabase → SQL Editor, paste the entire migration, and run it once. Keep a record of the applied version. Do not rerun this initial migration; future changes should be new migration files. Do not apply it over an existing conflicting schema without reviewing the differences.
 
 For a CLI-managed project, use Supabase CLI from a trusted development environment:
 
@@ -130,14 +130,14 @@ Before production rollout, smoke-test the real hosted Auth integration: sign up 
 
 ## Deployment
 
-Shiftly deploys from the `main` branch through Vercel. The deployed site uses Supabase environment variables configured in Vercel, and changes should be reviewed before publishing.
+Meadowmark deploys from the `main` branch through Vercel. The deployed site uses Supabase environment variables configured in Vercel, and changes should be reviewed before publishing.
 
 
 ## Automatic workspace invitation emails — dedicated Gmail account
 
 Invitation email delivery uses **Nodemailer and Gmail SMTP**, without a custom
-domain or Resend account. Use a dedicated free Gmail account for Shiftly rather
-than your personal email. Recipients see `Shiftly <your dedicated Gmail address>`;
+domain or Resend account. Use a dedicated free Gmail account for Meadowmark rather
+than your personal email. Recipients see `Meadowmark <your dedicated Gmail address>`;
 Gmail still exposes that sending address, so choose an appropriate account name.
 Supabase continues to handle signup confirmation and password recovery separately.
 
@@ -145,7 +145,7 @@ Supabase continues to handle signup confirmation and password recovery separatel
 
 1. Create or choose your dedicated free Gmail account. Sign in to that account,
    enable **2-Step Verification** in Google Account → Security, then create an
-   **App password** for Shiftly at <https://myaccount.google.com/apppasswords>.
+   **App password** for Meadowmark at <https://myaccount.google.com/apppasswords>.
    Use this app password, never the account's regular password. If App passwords
    are unavailable, check Google's account eligibility/security settings; do not
    disable TLS or enable obsolete “less secure apps” access.

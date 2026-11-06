@@ -211,7 +211,7 @@ export function ScheduleEditor({
           <p className="eyebrow">PRIVATE WEEKLY DRAFT</p>
           <h2>Create this week’s coverage plan</h2>
           <p>
-            Shiftly will add every active recurring requirement as an empty
+            Meadowmark will add every active recurring requirement as an empty
             slot. You can also carry forward assignments and one-off slots from
             the previous week.
           </p>

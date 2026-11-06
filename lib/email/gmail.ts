@@ -38,7 +38,7 @@ export function createGmailProvider(
         });
         const result = await transport.sendMail({
           ...message,
-          from: { name: "Shiftly", address: user },
+          from: { name: "Meadowmark", address: user },
           // Restrict the envelope to exactly this employee and the Gmail account.
           envelope: { from: user, to: [message.to] },
         });

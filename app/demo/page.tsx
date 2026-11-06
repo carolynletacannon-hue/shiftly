@@ -1,4 +1,5 @@
 "use client";
+import { Brand } from "../brand";
 
 import { useMemo, useState } from "react";
 import { CoverageCalendar } from "@/lib/scheduling/coverage-calendar";
@@ -170,10 +171,7 @@ export default function Home() {
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">S</span>
-          <span>
-            shiftly<span className="brand-dot">.</span>
-          </span>
+          <Brand />
         </div>
         <div className="workspace">
           <span className="workspace-avatar">D</span>
@@ -216,7 +214,7 @@ export default function Home() {
       <main className="content">
         <header className="topbar">
           <span>
-            Shiftly /{" "}
+            Meadowmark /{" "}
             {tab === "schedule"
               ? "Schedule"
               : tab === "requests"
@@ -518,7 +516,7 @@ export default function Home() {
             </>
           )}
           <footer>
-            Shiftly demo · No workplace data · Built for small teams
+            Meadowmark demo · No workplace data · Built for small teams
           </footer>
         </div>
       </main>

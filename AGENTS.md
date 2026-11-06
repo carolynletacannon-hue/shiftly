@@ -1,4 +1,4 @@
-# Shiftly — instructions for Codex
+# Meadowmark — instructions for Codex
 
 ## Objective
 Build a polished, mobile-first scheduling product for small workplaces, starting with a seven-person hospitality team. Keep the codebase easy to deploy via GitHub -> Vercel; no local development required of the owner.

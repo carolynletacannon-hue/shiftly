@@ -30,10 +30,10 @@ export async function deliverShiftEmails() {
         ? await sendEmail(
             {
               to: user.email,
-              subject: "Shiftly shift request update",
+              subject: "Meadowmark shift request update",
               text:
-                item.message + ". Open Shift Requests in Shiftly for details.",
-              html: "<p>There is an update to your shift requests. Open Shift Requests in Shiftly for details.</p>",
+                item.message + ". Open Shift Requests in Meadowmark for details.",
+              html: "<p>There is an update to your shift requests. Open Shift Requests in Meadowmark for details.</p>",
             },
             item.id,
           )
