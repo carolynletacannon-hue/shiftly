@@ -1,6 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { CoverageCalendar } from "@/lib/scheduling/coverage-calendar";
+import { addDays, copyTimes, localToInstant } from "@/lib/scheduling/time";
+import type { Shift as Assignment } from "@/lib/scheduling/types";
 
 type Tab = "schedule" | "requests" | "team";
 type Request = {
@@ -79,6 +82,47 @@ const fmt = (date: Date, opts: Intl.DateTimeFormatOptions) =>
   date.toLocaleDateString("en-US", { ...opts, timeZone: "UTC" });
 
 export default function Home() {
+  const [demoAssignments, setDemoAssignments] = useState<Assignment[]>(() =>
+    shifts.flatMap((day, index) =>
+      day.flatMap((shift, slot) => {
+        const groupId = `demo-${index}-${slot}`;
+        const record = {
+          id: groupId,
+          schedule_id: "demo",
+          shift_group_id: groupId,
+          employee_id: String(employees.indexOf(shift.employee)),
+          label: shift.role,
+          is_required: true,
+          position_name: "Front desk",
+          starts_at: localToInstant(
+            `${addDays("2026-11-01", index)}T${slot ? "15:00" : "07:00"}`,
+            "America/Denver",
+          ),
+          ends_at: localToInstant(
+            `${addDays("2026-11-01", index)}T${slot ? "23:00" : "15:00"}`,
+            "America/Denver",
+          ),
+          notes: "",
+          shift_groups: {
+            required_count: slot ? 1 : 3,
+            allow_overstaffing: true,
+          },
+        };
+        return slot
+          ? [record]
+          : [
+              record,
+              {
+                ...record,
+                id: `${groupId}-second`,
+                employee_id: String(
+                  (employees.indexOf(shift.employee) + 2) % 7,
+                ),
+              },
+            ];
+      }),
+    ),
+  );
   const [tab, setTab] = useState<Tab>("schedule");
   const [weekOffset, setWeekOffset] = useState(0);
   const [requests, setRequests] = useState<Request[]>(initialRequests);
@@ -210,7 +254,7 @@ export default function Home() {
                   className="button primary"
                   onClick={() =>
                     setNotice(
-                      "Demo only: schedule publishing is not implemented.",
+                      "Demo only: publishing does not save or notify anyone. Open a workspace to publish a real schedule.",
                     )
                   }
                 >
@@ -263,42 +307,89 @@ export default function Home() {
                     </button>
                   </div>
                 </div>
-                <div className="calendar-scroll">
-                  <div className="calendar-grid">
-                    {days.map((day, i) => (
-                      <div className="day" key={i}>
-                        <div className="day-heading">
-                          <strong>{fmt(day, { weekday: "short" })}</strong>
-                          <span>
-                            {fmt(day, { month: "short", day: "numeric" })}
-                          </span>
-                        </div>
-                        {shifts.map((group, groupIndex) =>
-                          groupIndex === i
-                            ? group.map((shift, j) => (
-                                <div
-                                  className={
-                                    j === 0 ? "shift morning" : "shift evening"
-                                  }
-                                  key={j}
-                                >
-                                  <span className="shift-type">
-                                    {shift.role}
-                                  </span>
-                                  <strong>{shift.employee}</strong>
-                                  <small>{shift.time}</small>
-                                </div>
-                              ))
-                            : null,
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                <div className="coverage-workspace coverage-grid-panel">
+                  <CoverageCalendar
+                    shifts={demoAssignments.map((shift) => ({
+                      ...shift,
+                      ...copyTimes(
+                        shift,
+                        "2026-11-01",
+                        addDays("2026-11-01", weekOffset * 7),
+                        "America/Denver",
+                        "America/Denver",
+                      ),
+                    }))}
+                    members={employees.map((name, index) => ({
+                      id: String(index),
+                      name,
+                      role: "employee",
+                    }))}
+                    week={addDays("2026-11-01", weekOffset * 7)}
+                    timezone="America/Denver"
+                    peers={[]}
+                    warning={40}
+                    pending={false}
+                    onAssign={(group, employeeId) => {
+                      setDemoAssignments((current) => [
+                        ...current,
+                        {
+                          ...current.find(
+                            (s) => s.shift_group_id === group.shift_group_id,
+                          )!,
+                          id: `demo-${Date.now()}`,
+                          employee_id: employeeId,
+                        },
+                      ]);
+                      setNotice(
+                        "Demo only: assignment changed in this preview. Nothing was saved.",
+                      );
+                    }}
+                    onRemove={(_, assignmentId) => {
+                      setDemoAssignments((current) =>
+                        current.map((s) =>
+                          s.id === assignmentId
+                            ? { ...s, employee_id: null }
+                            : s,
+                        ),
+                      );
+                      setNotice(
+                        "Demo only: employee removed in this preview. Nothing was saved.",
+                      );
+                    }}
+                    onStaffing={(group, count, allow) => {
+                      setDemoAssignments((current) =>
+                        current.map((s) =>
+                          s.shift_group_id === group.shift_group_id
+                            ? {
+                                ...s,
+                                shift_groups: {
+                                  required_count: Number(count),
+                                  allow_overstaffing: allow,
+                                },
+                              }
+                            : s,
+                        ),
+                      );
+                      setNotice(
+                        "Demo only: staffing changed in this preview. Nothing was saved.",
+                      );
+                    }}
+                    onAdd={() =>
+                      setNotice(
+                        "Demo only: open a real workspace to create shifts.",
+                      )
+                    }
+                    onEdit={() =>
+                      setNotice(
+                        "Demo only: open a real workspace to edit shared shift details.",
+                      )
+                    }
+                  />
                 </div>
               </section>
               <div className="hint">
-                ✨ Coming next: publish controls, availability conflicts, shift
-                swaps, and private calendar subscriptions.
+                Try a shift card to add employees or adjust staffing. This
+                preview resets when you reload.
               </div>
             </>
           )}

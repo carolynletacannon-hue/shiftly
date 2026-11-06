@@ -10,7 +10,7 @@ export default async function Page({
   searchParams: Promise<{ setup?: string; message?: string }>;
 }) {
   const { id } = await params;
-  const { db } = await requireWorkspace(id, ["owner", "manager"]);
+  const { db, role } = await requireWorkspace(id, ["owner", "manager"]);
   const query = await searchParams;
   const [roster, contacts, invitations] = await Promise.all([
     db
@@ -27,7 +27,7 @@ export default async function Page({
   if (roster.error || contacts.error || invitations.error)
     throw Error("Unable to load employees. Check the roster migration.");
   return (
-    <Frame>
+    <Frame workspace={{ id, role, name: undefined }}>
       <div className="page-heading">
         <div>
           <p className="eyebrow">

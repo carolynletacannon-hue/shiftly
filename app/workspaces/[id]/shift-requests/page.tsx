@@ -54,8 +54,11 @@ export default async function Page({
     throw Error(
       "Unable to load shift requests. Verify the Phase 4 migration is installed.",
     );
-  const {data: availability,error: availabilityError}=await db.from("employee_availability").select("employee_id,weekday,unavailable,start_time,end_time").eq("organization_id",id);
-  if(availabilityError)throw Error("Unable to load availability");
+  const { data: availability, error: availabilityError } = await db
+    .from("employee_availability")
+    .select("employee_id,weekday,unavailable,start_time,end_time")
+    .eq("organization_id", id);
+  if (availabilityError) throw Error("Unable to load availability");
   const me = roster.data?.find((e) => e.user_id === user.id)?.id;
   const previews = new Map<
     string,
@@ -82,7 +85,15 @@ export default async function Page({
           other_shift_id: r.other_shift_id,
         });
         if (error) throw Error("Unable to check transfer eligibility");
-        data.availability_warning=availabilityWarning({employee_id:manager?r.replacement_employee:me,starts_at:r.source_snapshot.starts_at,ends_at:r.source_snapshot.ends_at},(availability||[]) as Availability[],r.source_timezone);
+        data.availability_warning = availabilityWarning(
+          {
+            employee_id: manager ? r.replacement_employee : me,
+            starts_at: r.source_snapshot.starts_at,
+            ends_at: r.source_snapshot.ends_at,
+          },
+          (availability || []) as Availability[],
+          r.source_timezone,
+        );
         previews.set(r.id, data);
       }),
   );
@@ -131,7 +142,7 @@ export default async function Page({
     (s) => s.id === query.shift && s.employee_id === me,
   );
   return (
-    <Frame>
+    <Frame workspace={{ id, role, name: org.data?.name }}>
       <div className="page-heading">
         <div>
           <p className="eyebrow">{org.data?.name}</p>
@@ -321,7 +332,7 @@ export default async function Page({
         ))}
       </section>
       <section className="panel workspace-card">
-        <h2>Notifications</h2>
+        <h2 id="notifications">Notifications</h2>
         {notifications.data?.map((n) => (
           <p key={n.id}>{n.message}</p>
         ))}

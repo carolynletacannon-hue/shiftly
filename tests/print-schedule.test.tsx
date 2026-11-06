@@ -7,28 +7,50 @@ import { localToInstant } from "../lib/scheduling/time";
 import type { Shift } from "../lib/scheduling/types";
 
 const timezone = "America/Denver";
-function shift(id: string, employee: string | null, start: string, end: string): Shift {
+function shift(
+  id: string,
+  employee: string | null,
+  start: string,
+  end: string,
+): Shift {
   return {
-    id, employee_id: employee, schedule_id: "sample-week", notes: "Private planning note",
+    id,
+    employee_id: employee,
+    schedule_id: "sample-week",
+    notes: "Private planning note",
     starts_at: localToInstant(start, timezone),
     ends_at: localToInstant(end, timezone),
   };
 }
-function render(shifts: Shift[], options: { week?: string; draft?: boolean; carryIn?: Shift[] } = {}) {
-  return renderToStaticMarkup(createElement(PrintSchedule, {
-    businessName: "Sample Lodge & Cafe", week: "2026-11-01", timezone, shifts,
-    // Members are roster identities; no account ID or email is needed to print.
-    members: [
-      { id: "roster-only", name: "Sample Employee A", role: "employee" },
-      { id: "another-employee", name: "Sample Employee B", role: "employee" },
-    ],
-    draft: true, ...options,
-  }));
+function render(
+  shifts: Shift[],
+  options: { week?: string; draft?: boolean; carryIn?: Shift[] } = {},
+) {
+  return renderToStaticMarkup(
+    createElement(PrintSchedule, {
+      businessName: "Sample Lodge & Cafe",
+      week: "2026-11-01",
+      timezone,
+      shifts,
+      // Members are roster identities; no account ID or email is needed to print.
+      members: [
+        { id: "roster-only", name: "Sample Employee A", role: "employee" },
+        { id: "another-employee", name: "Sample Employee B", role: "employee" },
+      ],
+      draft: true,
+      ...options,
+    }),
+  );
 }
 
 test("prints seven dated columns, all employees sharing a shift and remaining unassigned places", () => {
-  const slots = ["roster-only", "another-employee", null, null].map((employee, i) =>
-    shift(`slot-${i}`, employee, "2026-11-01T07:00", "2026-11-01T15:00"));
+  const slots = ["roster-only", "another-employee", null, null].map(
+    (employee, i) => ({
+      ...shift(`slot-${i}`, employee, "2026-11-01T07:00", "2026-11-01T15:00"),
+      shift_group_id: "shared",
+      required_count: 4,
+    }),
+  );
   const html = render(slots);
   assert.equal((html.match(/scope="col"/g) || []).length, 7);
   assert.match(html, /Sample Lodge &amp; Cafe/);
@@ -41,23 +63,38 @@ test("prints seven dated columns, all employees sharing a shift and remaining un
   assert.match(html, /Sample Employee A/);
   assert.match(html, /Sample Employee B/);
   assert.match(html, /Unassigned \(2\)/);
-  assert.doesNotMatch(html, /Private planning note|<button|<select|<form|<input/);
+  assert.doesNotMatch(
+    html,
+    /Private planning note|<button|<select|<form|<input/,
+  );
 });
 
 test("marks drafts, omits the label for the current published revision, and escapes names", () => {
   assert.match(render([]), />Draft</);
   assert.doesNotMatch(render([], { draft: false }), />Draft</);
   assert.match(render([]), /No shifts/);
-  const html = renderToStaticMarkup(createElement(PrintSchedule, {
-    businessName: "<Sample>", week: "2026-12-28", timezone, shifts: [], members: [], draft: false,
-  }));
+  const html = renderToStaticMarkup(
+    createElement(PrintSchedule, {
+      businessName: "<Sample>",
+      week: "2026-12-28",
+      timezone,
+      shifts: [],
+      members: [],
+      draft: false,
+    }),
+  );
   assert.match(html, /&lt;Sample&gt;/);
   assert.match(html, /December 28, 2026 – January 3, 2027/);
   assert.match(html, /<th scope="col"><span>Monday/);
 });
 
 test("prints overnight shifts on their start day, with end date and DST zone changes", () => {
-  const overnight = shift("overnight", "roster-only", "2026-10-31T23:00", "2026-11-01T07:00");
+  const overnight = shift(
+    "overnight",
+    "roster-only",
+    "2026-10-31T23:00",
+    "2026-11-01T07:00",
+  );
   const html = render([overnight], { week: "2026-10-26" });
   assert.match(html, /11:00 PM MDT – Nov 1, 7:00 AM MST/);
   const cells = html.match(/<td>.*?<\/td>/g)!;
@@ -66,7 +103,12 @@ test("prints overnight shifts on their start day, with end date and DST zone cha
 });
 
 test("includes carry-in overnight shifts once and excludes shifts outside the week", () => {
-  const carry = shift("carry", "roster-only", "2026-10-31T23:00", "2026-11-01T07:00");
+  const carry = shift(
+    "carry",
+    "roster-only",
+    "2026-10-31T23:00",
+    "2026-11-01T07:00",
+  );
   const ended = shift("ended", null, "2026-10-31T16:00", "2026-11-01T00:00");
   const next = shift("next", null, "2026-11-08T07:00", "2026-11-08T15:00");
   const html = render([carry, next], { carryIn: [carry, ended] });
@@ -76,7 +118,37 @@ test("includes carry-in overnight shifts once and excludes shifts outside the we
 });
 
 test("retains unknown assigned identities instead of describing them as unassigned", () => {
-  const html = render([shift("unknown", "missing", "2026-11-01T07:00", "2026-11-01T15:00")]);
+  const html = render([
+    shift("unknown", "missing", "2026-11-01T07:00", "2026-11-01T15:00"),
+  ]);
   assert.match(html, /Employee name unavailable/);
   assert.doesNotMatch(html, /Unassigned/);
+});
+
+test("equal hours do not combine unrelated shifts, labels or positions", () => {
+  const html = render([
+    {
+      ...shift("one", "roster-only", "2026-11-01T07:00", "2026-11-01T15:00"),
+      shift_group_id: "front",
+      label: "Front desk",
+      position_name: "Reception",
+      required_count: 3,
+    },
+    {
+      ...shift(
+        "two",
+        "another-employee",
+        "2026-11-01T07:00",
+        "2026-11-01T15:00",
+      ),
+      shift_group_id: "kitchen",
+      label: "Breakfast",
+      position_name: "Kitchen",
+      required_count: 1,
+    },
+  ]);
+  assert.equal((html.match(/print-schedule-shift"/g) || []).length, 2);
+  assert.match(html, /Front desk/);
+  assert.match(html, /Kitchen/);
+  assert.match(html, /Unassigned \(2\)/);
 });

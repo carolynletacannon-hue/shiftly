@@ -9,7 +9,7 @@ export default async function Page({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { db } = await requireWorkspace(id, ["owner", "manager"]);
+  const { db, role } = await requireWorkspace(id, ["owner", "manager"]);
   const [org, templates, requirements, version] = await Promise.all([
     db
       .from("organizations")
@@ -42,7 +42,7 @@ export default async function Page({
     org.data.settings.week_starts_on ?? 0,
   );
   return (
-    <Frame>
+    <Frame workspace={{ id, role, name: org.data.name }}>
       <div className="page-heading">
         <div>
           <p className="eyebrow">SET IT UP ONCE · USE IT EVERY WEEK</p>

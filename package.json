@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node --conditions=react-server --import tsx --test tests/*.test.ts && node --import tsx --test tests/*.test.tsx"
+    "test": "node --conditions=react-server --import tsx --test tests/*.test.ts && node --import tsx --test tests/*.test.tsx",
+    "test:postgres": "node --conditions=react-server --import tsx --test --test-concurrency=1 tests/postgres-concurrency.ts tests/multi-employee-requests.test.ts"
   },
   "dependencies": {
     "@js-temporal/polyfill": "0.5.1",
@@ -22,8 +23,10 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.15",
     "@types/node": "^22.0.0",
+    "@types/pg": "8.23.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "pg": "8.23.1",
     "tsx": "^4.23.15",
     "typescript": "^5.9.0"
   }

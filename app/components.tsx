@@ -1,17 +1,20 @@
-import Link from "next/link";
-export function Frame({ children }: { children: React.ReactNode }) {
+import { TopNavigation } from "./top-navigation";
+export function Frame({
+  children,
+  workspace,
+}: {
+  children: React.ReactNode;
+  workspace?: { id: string; role: string; name?: string };
+}) {
   return (
     <div className="account-shell">
-      <header className="account-header">
-        <Link className="brand" href="/workspaces">
-          <span className="brand-mark">S</span>shiftly.
-        </Link>
-        <nav>
-          <Link href="/workspaces">Workspaces</Link>
-          <Link href="/demo">View demo</Link>
-        </nav>
-      </header>
-      <main className="account-page">{children}</main>
+      <a className="skip-link" href="#main-content">
+        Skip to content
+      </a>
+      <TopNavigation workspace={workspace} />
+      <main id="main-content" className="account-page">
+        {children}
+      </main>
     </div>
   );
 }

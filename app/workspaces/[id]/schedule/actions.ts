@@ -10,6 +10,10 @@ import {
 import type { Shift } from "@/lib/scheduling/types";
 const commands = [
   "create",
+  "group_save",
+  "group_assign",
+  "group_staffing",
+  "group_delete",
   "save",
   "slot_save",
   "assign",
@@ -37,7 +41,11 @@ export async function scheduleAction(
       input.time_choice === "earlier" || input.time_choice === "later"
         ? input.time_choice
         : "reject";
-    if (command === "save" || command === "slot_save") {
+    if (
+      command === "save" ||
+      command === "slot_save" ||
+      command === "group_save"
+    ) {
       const { data: schedule, error } = await db
         .from("schedules")
         .select("timezone")
@@ -85,7 +93,9 @@ export async function scheduleAction(
           ? { data: null, error: null }
           : await db
               .from("schedules")
-              .select("*,shifts(*)")
+              .select(
+                "*,shifts(*,shift_groups(required_count,allow_overstaffing))",
+              )
               .eq("organization_id", orgId)
               .eq("week_start", previous)
               .maybeSingle();
@@ -106,6 +116,13 @@ export async function scheduleAction(
             (published?.published_shifts || draft?.shifts || []) as Shift[]
           ).map((s) => ({
             employee_id: s.employee_id,
+            copy_group_key: s.shift_group_id || s.id,
+            required_count:
+              s.shift_groups?.required_count ?? s.required_count ?? 1,
+            allow_overstaffing:
+              s.shift_groups?.allow_overstaffing ??
+              s.allow_overstaffing ??
+              true,
             position_id: published
               ? positions.find((p) => p.name === s.position_name)?.id || null
               : s.position_id,
@@ -146,7 +163,11 @@ export async function scheduleAction(
     if (error) {
       const safe = [
         "Stale revision",
-        "Approved time off",
+        "Approved time off conflicts",
+        "This shift does not permit",
+        "Shift unavailable",
+        "Assignment unavailable",
+        "Shared shift structure",
         "Employee has overlapping",
         "Shift must start",
         "No unpublished changes",

@@ -4,78 +4,221 @@ import { readFile, readdir } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 
 test("weekly setup reconciles existing drafts atomically with tenant isolation", async () => {
- const db = new PGlite();
- await db.exec(`create role anon; create role authenticated; create schema auth;
+  const db = new PGlite();
+  await db.exec(`create role anon; create role authenticated; create schema auth;
  create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz,raw_user_meta_data jsonb default '{}');
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  grant usage on schema public,auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;`);
- const dir=new URL('../supabase/migrations/',import.meta.url);
- for(const file of (await readdir(dir)).filter(f=>f.endsWith('.sql')).sort()) await db.exec(await readFile(new URL(file,dir),'utf8'));
- const user='20000000-0000-0000-0000-000000000001';
- await db.query("insert into auth.users(id,email,email_confirmed_at) values($1,'manager@example.test',now())",[user]);
- await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user]);
- await db.exec('set role authenticated');
- async function row(sql:string,args:unknown[]=[]):Promise<any>{return (await db.query(sql,args)).rows[0];}
- const org=(await row("select public.create_workspace('Test Hotel','America/Denver') id")).id;
- const cmd=async(command:string,payload:object,revision:number|null=null)=>(await row('select public.schedule_command($1,$2,$3,$4) r',[org,command,JSON.stringify(payload),revision])).r;
- const draft=await cmd('create',{week_start:'2026-11-01'});
- const items=(await db.query<{id:string}>('select id from public.shift_templates where organization_id=$1 order by start_time',[org])).rows.map(t=>({template_id:t.id,days:[0,1,2,3,4,5,6],required_count:1}));
- const version=async()=>(await row('select revision from public.weekly_setup_versions where organization_id=$1',[org]))?.revision??0;
- const save=async(rows:unknown=items,week:string|null='2026-11-01',rev?:number)=>row('select public.save_weekly_setup($1,$2,$3,$4) r',[org,JSON.stringify(rows),rev??await version(),week]);
- const shifts=async()=>(await db.query<any>('select * from public.shifts where schedule_id=$1 order by id',[draft.id])).rows;
- assert.equal((await shifts()).length,0);
- // Custom rows matching seeded templates reuse them rather than failing a name constraint.
- const custom=[{name:'Morning',start_time:'07:00',end_time:'15:00',end_next_day:false},{name:'Evening',start_time:'15:00',end_time:'23:00',end_next_day:false},{name:'Overnight',start_time:'23:00',end_time:'07:00',end_next_day:true}].map(i=>({...i,days:[0,1,2,3,4,5,6],required_count:1}));
- await save(custom);
- assert.equal((await row('select count(*)::int n from public.coverage_requirements where organization_id=$1 and is_active',[org])).n,21);
- assert.equal((await shifts()).length,21);
- const employee=(await row("insert into public.employees(organization_id,display_name) values($1,'Roster Only') returning id,user_id",[org]));
- assert.equal(employee.user_id,null);
- const first=(await shifts())[0];
- await cmd('assign',{schedule_id:draft.id,id:first.id,employee_id:employee.id},(await row('select revision from public.schedules where id=$1',[draft.id])).revision);
- const assigned=(await shifts()).find(s=>s.id===first.id);
- await save();
- assert.equal((await shifts()).length,21);
- const preserved=(await shifts()).find(s=>s.id===first.id);
- for(const key of ['employee_id','starts_at','ends_at','notes']) assert.deepEqual(preserved[key],assigned[key]);
- // Increasing counts adds slots, and reducing removes only empty generated slots.
- await save(items.map(i=>({...i,required_count:2})));
- assert.equal((await shifts()).length,42);
- const extra=(await shifts()).find(s=>s.starts_at.getTime()===assigned.starts_at.getTime() && s.id!==assigned.id);
- const assign=async(id:string,employee_id:string|null)=>cmd('assign',{schedule_id:draft.id,id,employee_id},(await row('select revision from public.schedules where id=$1',[draft.id])).revision);
- await assign(assigned.id,null);
- await assign(extra.id,employee.id);
- await save();
- assert.equal((await shifts()).find(s=>s.id===extra.id)?.employee_id,employee.id);
- await save(); assert.equal((await shifts()).length,21);
- const before=await shifts(), rev=await version();
- await assert.rejects(save([{...items[0],required_count:0}]),/staffing count/);
- assert.equal(await version(),rev); assert.deepEqual(await shifts(),before);
- // Two callers holding the same setup revision cannot both commit.
- const outcomes=await Promise.allSettled([save(items,'2026-11-01',rev),save(items,'2026-11-01',rev)]);
- assert.equal(outcomes.filter(r=>r.status==='fulfilled').length,1);
- assert.equal((await shifts()).length,21);
- // A stale calendar editor cannot overwrite a reconciliation.
- await assert.rejects(cmd('assign',{schedule_id:draft.id,id:first.id,employee_id:null},1),/Stale revision/);
- await save([],null); assert.equal((await shifts()).length,21);
- await save([]); assert.equal((await shifts()).length,1);
- assert.equal((await shifts())[0].employee_id,employee.id);
- assert.equal((await shifts())[0].is_required,false);
- await save(); assert.equal((await shifts()).length,21);
- const schedule=await row('select revision from public.schedules where id=$1',[draft.id]);
- await cmd('publish',{schedule_id:draft.id,allow_incomplete:true},schedule.revision);
- const published=(await db.query('select * from public.published_shifts')).rows;
- const publishedVersion=await version();
- await assert.rejects(save(),/published/);
- assert.equal(await version(),publishedVersion);
- assert.deepEqual((await db.query('select * from public.published_shifts')).rows,published);
- await save(items,null);
- assert.deepEqual((await db.query('select * from public.published_shifts')).rows,published);
- await db.exec('reset role');
- await db.query("select set_config('request.jwt.claim.sub',$1,false)",['20000000-0000-0000-0000-000000000002']);
- await db.exec('set role authenticated');
- await assert.rejects(save(items,null,0),/Permission denied/);
- await db.exec('reset role;set role anon');
- await assert.rejects(save(items,null,0),/permission denied/);
- await db.close();
+  const dir = new URL("../supabase/migrations/", import.meta.url);
+  for (const file of (await readdir(dir))
+    .filter((f) => f.endsWith(".sql"))
+    .sort())
+    await db.exec(await readFile(new URL(file, dir), "utf8"));
+  const user = "20000000-0000-0000-0000-000000000001";
+  await db.query(
+    "insert into auth.users(id,email,email_confirmed_at) values($1,'manager@example.test',now())",
+    [user],
+  );
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)", [user]);
+  await db.exec("set role authenticated");
+  async function row(sql: string, args: unknown[] = []): Promise<any> {
+    return (await db.query(sql, args)).rows[0];
+  }
+  const org = (
+    await row(
+      "select public.create_workspace('Test Hotel','America/Denver') id",
+    )
+  ).id;
+  const cmd = async (
+    command: string,
+    payload: object,
+    revision: number | null = null,
+  ) =>
+    (
+      await row("select public.schedule_command($1,$2,$3,$4) r", [
+        org,
+        command,
+        JSON.stringify(payload),
+        revision,
+      ])
+    ).r;
+  const draft = await cmd("create", { week_start: "2026-11-01" });
+  const items = (
+    await db.query<{ id: string }>(
+      "select id from public.shift_templates where organization_id=$1 order by start_time",
+      [org],
+    )
+  ).rows.map((t) => ({
+    template_id: t.id,
+    days: [0, 1, 2, 3, 4, 5, 6],
+    required_count: 1,
+  }));
+  const version = async () =>
+    (
+      await row(
+        "select revision from public.weekly_setup_versions where organization_id=$1",
+        [org],
+      )
+    )?.revision ?? 0;
+  const save = async (
+    rows: unknown = items,
+    week: string | null = "2026-11-01",
+    rev?: number,
+  ) =>
+    row("select public.save_weekly_setup($1,$2,$3,$4) r", [
+      org,
+      JSON.stringify(rows),
+      rev ?? (await version()),
+      week,
+    ]);
+  const shifts = async () =>
+    (
+      await db.query<any>(
+        "select * from public.shifts where schedule_id=$1 order by id",
+        [draft.id],
+      )
+    ).rows;
+  assert.equal((await shifts()).length, 0);
+  // Custom rows matching seeded templates reuse them rather than failing a name constraint.
+  const custom = [
+    {
+      name: "Morning",
+      start_time: "07:00",
+      end_time: "15:00",
+      end_next_day: false,
+    },
+    {
+      name: "Evening",
+      start_time: "15:00",
+      end_time: "23:00",
+      end_next_day: false,
+    },
+    {
+      name: "Overnight",
+      start_time: "23:00",
+      end_time: "07:00",
+      end_next_day: true,
+    },
+  ].map((i) => ({ ...i, days: [0, 1, 2, 3, 4, 5, 6], required_count: 1 }));
+  await save(custom);
+  assert.equal(
+    (
+      await row(
+        "select count(*)::int n from public.coverage_requirements where organization_id=$1 and is_active",
+        [org],
+      )
+    ).n,
+    21,
+  );
+  assert.equal((await shifts()).length, 21);
+  const employee = await row(
+    "insert into public.employees(organization_id,display_name) values($1,'Roster Only') returning id,user_id",
+    [org],
+  );
+  assert.equal(employee.user_id, null);
+  const first = (await shifts())[0];
+  await cmd(
+    "assign",
+    { schedule_id: draft.id, id: first.id, employee_id: employee.id },
+    (await row("select revision from public.schedules where id=$1", [draft.id]))
+      .revision,
+  );
+  const assigned = (await shifts()).find((s) => s.id === first.id);
+  await save();
+  assert.equal((await shifts()).length, 21);
+  const preserved = (await shifts()).find((s) => s.id === first.id);
+  for (const key of ["employee_id", "starts_at", "ends_at", "notes"])
+    assert.deepEqual(preserved[key], assigned[key]);
+  // Increasing counts adds slots, and reducing removes only empty generated slots.
+  await save(items.map((i) => ({ ...i, required_count: 2 })));
+  assert.equal((await shifts()).length, 42);
+  const extra = (await shifts()).find(
+    (s) =>
+      s.starts_at.getTime() === assigned.starts_at.getTime() &&
+      s.id !== assigned.id,
+  );
+  const assign = async (id: string, employee_id: string | null) =>
+    cmd(
+      "assign",
+      { schedule_id: draft.id, id, employee_id },
+      (
+        await row("select revision from public.schedules where id=$1", [
+          draft.id,
+        ])
+      ).revision,
+    );
+  await assign(assigned.id, null);
+  await assign(extra.id, employee.id);
+  await save();
+  assert.equal(
+    (await shifts()).find((s) => s.id === extra.id)?.employee_id,
+    employee.id,
+  );
+  await save();
+  assert.equal((await shifts()).length, 21);
+  const before = await shifts(),
+    rev = await version();
+  await assert.rejects(
+    save([{ ...items[0], required_count: 0 }]),
+    /staffing count/,
+  );
+  assert.equal(await version(), rev);
+  assert.deepEqual(await shifts(), before);
+  // Two callers holding the same setup revision cannot both commit.
+  const outcomes = await Promise.allSettled([
+    save(items, "2026-11-01", rev),
+    save(items, "2026-11-01", rev),
+  ]);
+  assert.equal(outcomes.filter((r) => r.status === "fulfilled").length, 1);
+  assert.equal((await shifts()).length, 21);
+  // A stale calendar editor cannot overwrite a reconciliation.
+  await assert.rejects(
+    cmd(
+      "assign",
+      { schedule_id: draft.id, id: first.id, employee_id: null },
+      1,
+    ),
+    /Stale revision/,
+  );
+  await save([], null);
+  assert.equal((await shifts()).length, 21);
+  await save([]);
+  assert.equal((await shifts()).length, 1);
+  assert.equal((await shifts())[0].employee_id, employee.id);
+  assert.equal((await shifts())[0].is_required, false);
+  // The retired assigned one-off is independent; setup must not silently absorb it.
+  await save();
+  assert.equal((await shifts()).length, 22);
+  const schedule = await row(
+    "select revision from public.schedules where id=$1",
+    [draft.id],
+  );
+  await cmd(
+    "publish",
+    { schedule_id: draft.id, allow_incomplete: true },
+    schedule.revision,
+  );
+  const published = (await db.query("select * from public.published_shifts"))
+    .rows;
+  const publishedVersion = await version();
+  await assert.rejects(save(), /published/);
+  assert.equal(await version(), publishedVersion);
+  assert.deepEqual(
+    (await db.query("select * from public.published_shifts")).rows,
+    published,
+  );
+  await save(items, null);
+  assert.deepEqual(
+    (await db.query("select * from public.published_shifts")).rows,
+    published,
+  );
+  await db.exec("reset role");
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)", [
+    "20000000-0000-0000-0000-000000000002",
+  ]);
+  await db.exec("set role authenticated");
+  await assert.rejects(save(items, null, 0), /Permission denied/);
+  await db.exec("reset role;set role anon");
+  await assert.rejects(save(items, null, 0), /permission denied/);
+  await db.close();
 });

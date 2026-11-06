@@ -22,7 +22,7 @@ export async function SchedulingPage({
   searchParams: Promise<{ week?: string; setupSaved?: string }>;
 }) {
   const { id } = await params;
-  const { db } = await requireWorkspace(id, ["owner", "manager"]);
+  const { db, role } = await requireWorkspace(id, ["owner", "manager"]);
   const { data: org, error: orgError } = await db
     .from("organizations")
     .select("name,timezone,settings")
@@ -59,7 +59,7 @@ export async function SchedulingPage({
   ] = await Promise.all([
     db
       .from("schedules")
-      .select("*,shifts(*)")
+      .select("*,shifts(*,shift_groups(required_count,allow_overstaffing))")
       .eq("organization_id", id)
       .eq("week_start", week)
       .maybeSingle(),
@@ -101,12 +101,29 @@ export async function SchedulingPage({
     throw Error(
       "Unable to load scheduling data. Check the Phase 2 and coverage migrations, then retry.",
     );
-  const [{ data: timeOff, error: timeOffError }, { data: availability, error: availabilityError }, { count: pendingCount, error: pendingError }] = await Promise.all([
-    db.from("time_off_requests").select("id,employee_id,start_date,end_date,full_day,timezone,starts_at,ends_at,status").eq("organization_id", id).eq("status", "approved"),
+  const [
+    { data: timeOff, error: timeOffError },
+    { data: availability, error: availabilityError },
+    { count: pendingCount, error: pendingError },
+  ] = await Promise.all([
+    db
+      .from("time_off_requests")
+      .select(
+        "id,employee_id,start_date,end_date,full_day,timezone,starts_at,ends_at,status",
+      )
+      .eq("organization_id", id)
+      .eq("status", "approved"),
     db.from("employee_availability").select("*").eq("organization_id", id),
-    db.from("time_off_requests").select("id", { count: "exact", head: true }).eq("organization_id", id).eq("status", "pending"),
+    db
+      .from("time_off_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", id)
+      .eq("status", "pending"),
   ]);
-  if (timeOffError || availabilityError || pendingError) throw Error("Unable to load time off and availability. Apply the Phase 3 migration before using this release.");
+  if (timeOffError || availabilityError || pendingError)
+    throw Error(
+      "Unable to load time off and availability. Apply the Phase 3 migration before using this release.",
+    );
   const timezone = draft?.timezone || org.timezone;
   const bounds = weekBounds(week, timezone);
   const peerEnd = weekBounds(addDays(week, 1), timezone).end;
@@ -116,7 +133,7 @@ export async function SchedulingPage({
   ] = await Promise.all([
     db
       .from("shifts")
-      .select("*")
+      .select("*,shift_groups(required_count,allow_overstaffing)")
       .eq("organization_id", id)
       .lt("starts_at", peerEnd)
       .gt("ends_at", bounds.start),
@@ -147,79 +164,114 @@ export async function SchedulingPage({
   const members: Member[] = (roster || []).map((m) => ({
     id: m.id,
     role: "employee",
-    name:
-      m.display_name,
+    name: m.display_name,
   }));
   return (
     <>
-    <Frame>
-      {setupSaved && <p className="notice" role="status">{setupSaved === "applied" ? "Weekly setup saved. This week’s shifts are ready for assignment." : "Weekly setup saved for future weeks. This week is unchanged."}</p>}
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">{org.name} · MANAGER SCHEDULE</p>
-          <h1>{advanced ? "Advanced scheduling settings" : "Weekly schedule"}</h1>
-          <p className="subtitle">
-            See what the week needs, fill open slots, then publish when it’s ready.
+      <Frame workspace={{ id, role, name: org.name }}>
+        {setupSaved && (
+          <p className="notice" role="status">
+            {setupSaved === "applied"
+              ? "Weekly setup saved. This week’s shifts are ready for assignment."
+              : "Weekly setup saved for future weeks. This week is unchanged."}
           </p>
-        </div>
-        <div className="schedule-tools">
-          <Link className="button secondary" href={`/workspaces/${id}/shift-requests`}>Shift Requests</Link>
-          <Link className="button secondary" href={`/workspaces/${id}/admin`}>Manager Settings</Link>
-          <Link className="button secondary" href={`/workspaces/${id}/weekly-setup`}>Set Up Weekly Schedule</Link>
-          <Link className="button secondary" href={`/workspaces/${id}/schedule${advanced ? "" : "/settings"}`}>{advanced ? "Weekly calendar" : "Advanced settings"}</Link>
-          <Link className="button secondary" href={`/workspaces/${id}/time-off`}>Time-Off Requests{pendingCount ? ` (${pendingCount} pending)` : ""}</Link>
-          <Link className="button secondary" href={`/workspaces/${id}/employees`}>
-            Employees
-          </Link>
-          <Link
-            className="button secondary"
-            href={`/workspaces/${id}/my-schedule?week=${week}&view=team`}
-          >
-            Published team view
-          </Link>
-        </div>
-      </div>
-      <WeekNavigation
-        id={id}
-        week={week}
-        todayWeek={validWeek(
-          undefined,
-          org.timezone,
-          org.settings.week_starts_on ?? 0,
         )}
-      />
-      <ScheduleEditor
-        key={`${id}:${week}`}
-        advanced={advanced}
-        availabilityTimezone={org.timezone}
-        timeOff={(timeOff || []) as TimeOff[]}
-        availability={(availability || []) as Availability[]}
-        orgId={id}
-        week={week}
-        timezone={timezone}
-        schedule={draft as Schedule | null}
-        members={members}
-        positions={positions || []}
-        templates={templates || []}
-        requirements={(requirements || []) as CoverageRequirement[]}
-        settings={settings}
-        firstDay={org.settings.week_starts_on ?? 0}
-        carryIn={carryIn}
-        peers={peers}
-      />
-    </Frame>
-    {!advanced && draft && <PrintSchedule
-      businessName={org.name}
-      week={week}
-      timezone={timezone}
-      shifts={draft.shifts as Shift[]}
-      members={members}
-      carryIn={carryIn}
-      draft={draft.published_revision !== draft.revision}
-    />}
+        <div className="page-heading">
+          <div>
+            <p className="eyebrow">{org.name} · MANAGER SCHEDULE</p>
+            <h1>
+              {advanced ? "Advanced scheduling settings" : "Weekly schedule"}
+            </h1>
+            <p className="subtitle">
+              See what the week needs, fill open slots, then publish when it’s
+              ready.
+            </p>
+          </div>
+          <div className="schedule-tools">
+            <Link
+              className="button secondary"
+              href={`/workspaces/${id}/shift-requests`}
+            >
+              Shift Requests
+            </Link>
+            <Link className="button secondary" href={`/workspaces/${id}/admin`}>
+              Manager Settings
+            </Link>
+            <Link
+              className="button secondary"
+              href={`/workspaces/${id}/weekly-setup`}
+            >
+              Set Up Weekly Schedule
+            </Link>
+            <Link
+              className="button secondary"
+              href={`/workspaces/${id}/schedule${advanced ? "" : "/settings"}`}
+            >
+              {advanced ? "Weekly calendar" : "Advanced settings"}
+            </Link>
+            <Link
+              className="button secondary"
+              href={`/workspaces/${id}/time-off`}
+            >
+              Time-Off Requests
+              {pendingCount ? ` (${pendingCount} pending)` : ""}
+            </Link>
+            <Link
+              className="button secondary"
+              href={`/workspaces/${id}/employees`}
+            >
+              Employees
+            </Link>
+            <Link
+              className="button secondary"
+              href={`/workspaces/${id}/my-schedule?week=${week}&view=team`}
+            >
+              Published team view
+            </Link>
+          </div>
+        </div>
+        <WeekNavigation
+          id={id}
+          week={week}
+          todayWeek={validWeek(
+            undefined,
+            org.timezone,
+            org.settings.week_starts_on ?? 0,
+          )}
+        />
+        <ScheduleEditor
+          key={`${id}:${week}`}
+          advanced={advanced}
+          availabilityTimezone={org.timezone}
+          timeOff={(timeOff || []) as TimeOff[]}
+          availability={(availability || []) as Availability[]}
+          orgId={id}
+          week={week}
+          timezone={timezone}
+          schedule={draft as Schedule | null}
+          members={members}
+          positions={positions || []}
+          templates={templates || []}
+          requirements={(requirements || []) as CoverageRequirement[]}
+          settings={settings}
+          firstDay={org.settings.week_starts_on ?? 0}
+          carryIn={carryIn}
+          peers={peers}
+        />
+      </Frame>
+      {!advanced && draft && (
+        <PrintSchedule
+          businessName={org.name}
+          week={week}
+          timezone={timezone}
+          shifts={draft.shifts as Shift[]}
+          members={members}
+          carryIn={carryIn}
+          draft={draft.published_revision !== draft.revision}
+        />
+      )}
     </>
   );
 }
-
 
 export default SchedulingPage;

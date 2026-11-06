@@ -2,6 +2,11 @@ export type Shift = {
   id: string;
   schedule_id: string;
   employee_id: string | null;
+  shift_group_id?: string;
+  required_count?: number;
+  allow_overstaffing?: boolean;
+  shift_groups?: { required_count: number; allow_overstaffing: boolean };
+
   position_id?: string | null;
   position_name?: string;
   label?: string;
