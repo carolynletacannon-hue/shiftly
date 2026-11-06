@@ -254,6 +254,7 @@ export function CoverageCalendar({
                           >
                             <option value="">Select employee…</option>
                             {members
+                              .filter((member) => !member.archived)
                               .filter(
                                 (m) =>
                                   !group.assignments.some(

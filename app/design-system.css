@@ -976,3 +976,16 @@ input[type="checkbox"] {
     display: none;
   }
 }
+
+/* Keep desktop navigation in a single row; retain the mobile menu breakpoint. */
+.app-navigation {
+  flex-wrap: nowrap;
+}
+.employee-lifecycle {
+  margin-top: 20px;
+  display: grid;
+  gap: 12px;
+}
+.employee-lifecycle li {
+  margin-block: 8px;
+}

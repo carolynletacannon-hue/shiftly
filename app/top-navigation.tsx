@@ -109,6 +109,11 @@ export function TopNavigation({
           <span aria-hidden="true">⌄</span>
         </summary>
         <div>
+          {admin && (
+            <Link href={`${base}/schedule/settings`}>
+              Advanced scheduling settings
+            </Link>
+          )}
           <Link href="/workspaces">Switch workspace</Link>
           <Link href="/demo">Explore demo</Link>
           <Link href="/reset-password">Change password</Link>

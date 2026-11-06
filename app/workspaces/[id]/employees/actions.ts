@@ -69,3 +69,32 @@ export async function inviteRoster(form: FormData) {
   );
   redirect(`/workspaces/${org}/admin?invited=1`);
 }
+
+export async function manageEmployee(form: FormData) {
+  const org = field(form, "organization_id");
+  const { db } = await requireWorkspace(org, ["owner", "manager"]);
+  const command = field(form, "command");
+  if (
+    !["archive", "restore", "delete"].includes(command) ||
+    form.get("confirmed") !== "yes"
+  )
+    throw Error("Confirm the employee action before continuing.");
+  const { data, error } = await db.rpc("employee_lifecycle", {
+    org,
+    employee: field(form, "employee_id"),
+    command,
+  });
+  const message = error
+    ? "Unable to update employee. Refresh and review their assignments, requests, and access."
+    : !data?.ok
+      ? "Employee unchanged. Resolve the blockers listed on their card first."
+      : command === "archive"
+        ? "Employee archived. Workspace access and outstanding invitations revoked. History preserved."
+        : command === "restore"
+          ? "Employee restored for scheduling. Send a new invitation to reconnect their account."
+          : "Unused employee permanently deleted.";
+  revalidatePath(`/workspaces/${org}`, "layout");
+  redirect(
+    `/workspaces/${org}/employees?message=${encodeURIComponent(message)}`,
+  );
+}

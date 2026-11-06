@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Frame } from "@/app/components";
 import { requireWorkspace } from "@/lib/auth";
 import type { TimeOff, Availability } from "@/lib/time-off/types";
@@ -21,7 +20,7 @@ export default async function Page({
     db.from("organizations").select("name,timezone").eq("id", id).single(),
     db
       .from("employees")
-      .select("id,display_name,user_id")
+      .select("id,display_name,user_id,archived_at")
       .eq("organization_id", id)
       .order("display_name"),
     db
@@ -82,12 +81,6 @@ export default async function Page({
             managers.
           </p>
         </div>
-        <Link
-          className="button secondary"
-          href={`/workspaces/${id}/${manager ? "schedule" : "my-schedule"}`}
-        >
-          Weekly schedule
-        </Link>
       </div>
       {!!notifications?.length && (
         <details className="panel workspace-card">
@@ -112,6 +105,7 @@ export default async function Page({
           id: e.id,
           name: e.display_name,
           placeholder: !e.user_id,
+          archived: !!e.archived_at,
         }))}
         requests={(requests || []) as TimeOff[]}
         availability={(availability || []) as Availability[]}

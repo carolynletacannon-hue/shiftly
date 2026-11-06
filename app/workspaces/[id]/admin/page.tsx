@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { requestAction } from "../shift-requests/actions";
 import { cookies } from "next/headers";
 import { Frame, Input, Message } from "@/app/components";
@@ -86,21 +85,9 @@ export default async function Page({
             {role} · {org.timezone}
           </p>
         </div>
-        <Link className="button secondary" href="/workspaces">
-          Switch workplace
-        </Link>
       </div>
       <Message text={query.message} />
-      <nav className="schedule-tabs" aria-label="Workspace sections">
-        {admin && (
-          <Link href={`/workspaces/${id}/schedule`}>Weekly calendar</Link>
-        )}
-        {admin && <Link href={`/workspaces/${id}/employees`}>Employees</Link>}
-        <Link href={`/workspaces/${id}/my-schedule`}>My Schedule</Link>
-        <Link href={`/workspaces/${id}/my-schedule?view=team`}>
-          Team schedule
-        </Link>
-      </nav>
+
       <div className="two-col">
         <section className="panel workspace-card">
           {admin && (
@@ -136,9 +123,6 @@ export default async function Page({
                 </p>
                 <button className="button primary">Save coverage policy</button>
               </form>
-              <Link href={`/workspaces/${id}/shift-requests`}>
-                Shift Requests
-              </Link>
             </>
           )}
           <h2>Business settings</h2>
