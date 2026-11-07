@@ -1,6 +1,5 @@
 "use server";
-import { after } from "next/server";
-import { deliverShiftEmails } from "@/lib/shift-requests/email";
+import { scheduleNotificationEmails } from "@/lib/notifications/trigger";
 import { requireWorkspace } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import {
@@ -199,7 +198,7 @@ export async function scheduleAction(
                 : "Unable to save. Check your permissions and fields, then refresh before retrying.",
       };
     }
-    if (command === "publish") after(deliverShiftEmails);
+    if (command === "publish") scheduleNotificationEmails(orgId);
     revalidatePath(`/workspaces/${orgId}/schedule`);
     revalidatePath(`/workspaces/${orgId}/my-schedule`);
     return { ok: true, error: "" };

@@ -1,8 +1,17 @@
+import { timingSafeEqual } from "node:crypto";
 import { deliverShiftEmails } from "@/lib/shift-requests/email";
+export const runtime = "nodejs";
+export const maxDuration = 300;
 export async function POST(request: Request) {
   const secret = process.env.CRON_SECRET;
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`)
+  const actual = Buffer.from(request.headers.get("authorization") || "");
+  const expected = Buffer.from(`Bearer ${secret}`);
+  if (
+    !secret ||
+    actual.length !== expected.length ||
+    !timingSafeEqual(actual, expected)
+  )
     return new Response("Unauthorized", { status: 401 });
-  await deliverShiftEmails();
-  return Response.json({ ok: true });
+  const result = await deliverShiftEmails();
+  return Response.json(result, { status: result.ok ? 200 : 503 });
 }

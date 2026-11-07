@@ -2,8 +2,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireWorkspace } from "@/lib/auth";
-import { after } from "next/server";
-import { deliverShiftEmails } from "@/lib/shift-requests/email";
+import { scheduleNotificationEmails } from "@/lib/notifications/trigger";
 export async function requestAction(form: FormData) {
   const id = String(form.get("organization_id") || "");
   const { db } = await requireWorkspace(id);
@@ -19,11 +18,7 @@ export async function requestAction(form: FormData) {
     payload,
   });
   if (!error)
-    after(async () => {
-      try {
-        await deliverShiftEmails();
-      } catch {}
-    });
+    scheduleNotificationEmails(id);
   revalidatePath(`/workspaces/${id}`, "layout");
   redirect(
     `/workspaces/${id}/shift-requests?message=${encodeURIComponent(error ? error.message : "Saved. Check the request status below.")}`,

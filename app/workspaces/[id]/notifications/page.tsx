@@ -1,3 +1,4 @@
+import { DeliveryControls } from "./delivery-controls";
 import { savePreferences, markRead } from "./actions";
 import { Frame } from "@/app/components";
 import { requireWorkspace } from "@/lib/auth";
@@ -44,6 +45,7 @@ export default async function Page({
         org={id}
         items={(notifications.data || []) as InboxItem[]}
       />
+      {role !== "employee" && <DeliveryControls org={id} />}
       <PreferenceControls
         action={savePreferences}
         org={id}
