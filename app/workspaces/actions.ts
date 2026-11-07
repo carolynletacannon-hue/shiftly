@@ -20,7 +20,7 @@ export async function createWorkspace(form: FormData) {
       "/onboarding?message=Unable+to+create+workspace.+Check+name+and+timezone.",
     );
   }
-  redirect("/workspaces/" + id + "/employees?setup=1");
+  redirect("/workspaces/" + id);
 }
 export async function switchWorkspace(form: FormData) {
   const id = field(form, "organization_id");

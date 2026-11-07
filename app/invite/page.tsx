@@ -16,6 +16,7 @@ export default async function Page({
   return (
     <Frame>
       <section className="panel auth-card">
+        <p className="eyebrow">WELCOME TO MEADOWMARK</p>
         <h1>Join your team</h1>
         <Message text={message} />
         <p>
@@ -41,7 +42,7 @@ export default async function Page({
             </p>
           )
         ) : (
-          <p>Ask your workspace manager for a fresh invitation link.</p>
+          <div><h2>Let’s get you a fresh invitation</h2><p>This link is missing or isn’t valid. Ask your workplace manager to resend your invitation. If it expired or was already used, a new link will help you get started.</p><Link href="/workspaces">Open your workplaces</Link></div>
         )}
       </section>
     </Frame>

@@ -1,3 +1,4 @@
+import { SubmitButton } from "../submit-button";
 import Link from "next/link";
 import { Frame, Input, Message } from "../components";
 import { authenticate } from "../auth/actions";
@@ -33,7 +34,7 @@ export default async function Page({
               autoComplete="current-password"
             />
           </label>
-          <button className="button primary">Sign in</button>
+          <SubmitButton pendingLabel="Signing in…">Sign in</SubmitButton>
         </form>
         <p>
           <Link
