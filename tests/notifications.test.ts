@@ -588,6 +588,66 @@ test("PostgreSQL notifications: preferences, private inbox, semantic events, sna
       },
     );
     await t.test(
+      "scoped claims affect only the manager's workspace and deny browser roles",
+      async () => {
+        await as(0);
+        await assert.rejects(
+          db.query(
+            "select * from public.claim_workspace_notification_emails($1)",
+            [org],
+          ),
+        );
+        await db.exec("reset role");
+        // Existing fixtures contain eligible work in org. An empty other workspace must not claim it.
+        const before = (
+          await db.query(
+            "select id,attempts,claim_token from public.shift_email_deliveries order by id",
+          )
+        ).rows;
+        await db.exec("set role service_role");
+        assert.equal(
+          (
+            await db.query(
+              "select * from public.claim_workspace_notification_emails($1)",
+              [other],
+            )
+          ).rows.length,
+          0,
+        );
+        await db.exec("reset role");
+        assert.deepEqual(
+          (
+            await db.query(
+              "select id,attempts,claim_token from public.shift_email_deliveries order by id",
+            )
+          ).rows,
+          before,
+        );
+        await db.exec("set role service_role");
+        const claimed = (
+          await db.query<any>(
+            "select * from public.claim_workspace_notification_emails($1)",
+            [org],
+          )
+        ).rows;
+        assert.ok(claimed.length > 0);
+        assert.ok(claimed.every((q) => q.organization_id === org));
+        const next = (
+          await db.query<any>(
+            "select * from public.claim_workspace_notification_emails($1)",
+            [org],
+          )
+        ).rows;
+        assert.ok(
+          next.every((q) => !claimed.some((previous) => previous.id === q.id)),
+        );
+        await db.exec("reset role");
+        await db.query(
+          "update public.shift_email_deliveries set attempts=0,claimed_until=null",
+        );
+      },
+    );
+    await t.test(
       "queue respects opt-outs, resolved approvals, disconnects, bounded retries and claim fencing",
       async () => {
         await db.exec("reset role");
@@ -671,8 +731,9 @@ test("PostgreSQL notifications: preferences, private inbox, semantic events, sna
 });
 
 test("email failures remain retryable; batches group only the same workplace recipient", async () => {
-  const { deliverNotificationBatch } =
-    await import("../lib/notifications/delivery");
+  const { deliverNotificationBatch } = await import(
+    "../lib/notifications/delivery"
+  );
   const jobs = [
     {
       id: "a",

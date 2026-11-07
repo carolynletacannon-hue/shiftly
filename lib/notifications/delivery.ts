@@ -18,15 +18,30 @@ export async function deliverNotificationBatch(
   worker: NotificationWorker,
   send: (message: EmailMessage, key: string) => Promise<EmailResult>,
 ) {
+  const outcomes = {
+    claimed: 0,
+    suppressed: 0,
+    preparationFailed: 0,
+    accepted: 0,
+    failed: 0,
+    acknowledged: 0,
+    acknowledgementFailed: 0,
+  };
   const groups = new Map<string, PreparedDelivery[]>();
-  for (const item of await worker.claim()) {
+  const claimed = await worker.claim();
+  outcomes.claimed = claimed.length;
+  for (const item of claimed) {
     try {
       const prepared = await worker.prepare(item);
-      if (!prepared) continue;
+      if (!prepared) {
+        outcomes.suppressed++;
+        continue;
+      }
       const key = `${item.organization_id}:${item.user_id}`;
       groups.set(key, [...(groups.get(key) || []), prepared]);
     } catch {
-      /* Other recipients can still receive their updates. */
+      outcomes.preparationFailed++;
+      console.error("[notification-email] preparation_failed");
     }
   }
   for (const items of groups.values()) {
@@ -52,10 +67,26 @@ export async function deliverNotificationBatch(
           .sort()
           .join(":"),
       );
-      if (result.status === "accepted")
-        for (const item of items) await worker.finish(item);
+      console.info("[notification-email] delivery_outcome", {
+        status: result.status,
+        notifications: items.length,
+      });
+      if (result.status === "accepted") {
+        outcomes.accepted++;
+        for (const item of items) {
+          try {
+            await worker.finish(item);
+            outcomes.acknowledged++;
+          } catch {
+            outcomes.acknowledgementFailed++;
+            console.error("[notification-email] acknowledgement_failed");
+          }
+        }
+      } else outcomes.failed++;
     } catch {
-      /* Expiring database leases allow bounded recovery. */
+      outcomes.failed++;
+      console.error("[notification-email] delivery_failed");
     }
   }
+  return outcomes;
 }

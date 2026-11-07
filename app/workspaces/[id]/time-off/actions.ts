@@ -2,8 +2,7 @@
 import { requireWorkspace } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { localToInstant, type TimeChoice } from "@/lib/scheduling/time";
-import { after } from "next/server";
-import { deliverShiftEmails } from "@/lib/shift-requests/email";
+import { scheduleNotificationEmails } from "@/lib/notifications/trigger";
 
 export async function timeOffAction(
   org: string,
@@ -82,7 +81,7 @@ export async function timeOffAction(
   }
   // Saved decisions stay successful independently of delivery.
   if (["submit", "approve", "deny", "revoke"].includes(command))
-    after(deliverShiftEmails);
+    scheduleNotificationEmails(org);
   for (const route of ["time-off", "schedule", "my-schedule"])
     revalidatePath(`/workspaces/${org}/${route}`);
   return {

@@ -106,3 +106,7 @@ For immediate rollback, set `PHASE7_EMAIL_ENABLED=false`; this stops claims with
 - Notification-specific suite on native PostgreSQL: 14 passed. The normal suite also validates the migration chain with PGlite.
 - `git diff --check`: passed.
 - Not run: real staging browser/SMTP delivery or Supabase CLI advisors. No staging credentials were configured; the CLI could not write its home directory. External Supabase/Vercel documentation retrieval was blocked. No production database or environment was accessed.
+
+## Email worker repair
+
+See [Phase 7 email delivery repair](PHASE7-EMAIL-DELIVERY-FIX.md) for the production-only guard, trusted Vercel URL fallback, manager diagnostics/scoped retry controls, logging and reviewed rollout checks. Preview no longer sends mail even when the flag is enabled.
