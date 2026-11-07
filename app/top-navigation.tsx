@@ -40,10 +40,18 @@ export function TopNavigation({
     };
   }, [workspace?.id, pathname]);
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    function escape(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, []);
   const base = workspace ? `/workspaces/${workspace.id}` : "";
   const admin = workspace && ["owner", "manager"].includes(workspace.role);
   const links = workspace
     ? [
+        { href: base, label: "Dashboard" },
         {
           href: `${base}/${admin ? "schedule" : "my-schedule"}`,
           label: "Schedule",

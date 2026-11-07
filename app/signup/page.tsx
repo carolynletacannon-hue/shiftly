@@ -1,3 +1,4 @@
+import { SubmitButton } from "../submit-button";
 import Link from "next/link";
 import { Frame, Input, Message } from "../components";
 import { authenticate } from "../auth/actions";
@@ -35,7 +36,9 @@ export default async function Page({
             />
           </label>
           <small>Use at least 12 characters.</small>
-          <button className="button primary">Create account</button>
+          <SubmitButton pendingLabel="Creating account…">
+            Create account
+          </SubmitButton>
         </form>
         <p>
           <Link

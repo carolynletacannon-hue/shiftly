@@ -10,3 +10,10 @@ All names and schedules here are synthetic. Manager/employee captures render the
 - [Personal employee schedule](employee-schedule.png)
 - [Login](login-desktop.png)
 - [Mobile navigation](navigation-mobile.png)
+
+# Phase 8 public homepage
+
+The Phase 8 phone and desktop captures are from a local production build. The illustrated schedule is explicitly labeled sample data; these images contain no actual workplace or employee information.
+
+- [Phone homepage](phase8-homepage-375.png)
+- [Desktop homepage](phase8-homepage-1440.png)

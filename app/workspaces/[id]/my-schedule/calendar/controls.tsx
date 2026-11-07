@@ -65,6 +65,7 @@ export function CalendarControls({
   }
   return (
     <section
+      id="calendar-integration"
       className="panel workspace-card calendar-integration"
       aria-labelledby="calendar-heading"
     >

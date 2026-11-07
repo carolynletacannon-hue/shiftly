@@ -16,7 +16,7 @@ export default async function Page({
     .eq("user_id", user.id);
   if (error)
     throw new Error(
-      "Unable to load workspaces. Apply database migrations and retry.",
+      "Unable to load your workplaces. Please try again.",
     );
   const active = (await cookies()).get("shiftly-workspace")?.value;
   return (
