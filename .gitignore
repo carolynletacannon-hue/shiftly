@@ -8,3 +8,6 @@ out/
 *.tsbuildinfo
 
 work/
+
+# Local Supabase CLI cache
+supabase/.temp/

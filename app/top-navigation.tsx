@@ -7,7 +7,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 export function TopNavigation({
   workspace,
+  timeClock = false,
 }: {
+  timeClock?: boolean;
   workspace?: { id: string; role: string; name?: string };
 }) {
   const pathname = usePathname();
@@ -60,6 +62,14 @@ export function TopNavigation({
           ? [
               { href: `${base}/employees`, label: "Employees" },
               { href: `${base}/weekly-setup`, label: "Weekly setup" },
+            ]
+          : []),
+        ...(timeClock
+          ? [
+              {
+                href: `${base}/time-clock`,
+                label: admin ? "Time Clock" : "My Timesheet",
+              },
             ]
           : []),
         { href: `${base}/time-off`, label: "Time Off" },
