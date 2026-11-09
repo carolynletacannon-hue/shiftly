@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./time-clock.css";
 import "./scheduling.css";
 import "./design-system.css";
 import "./launch.css";

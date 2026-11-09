@@ -1,3 +1,4 @@
+import { addDays, weekStart } from "../lib/scheduling/time";
 import type { CopyPreview } from "../lib/scheduling/copy-types";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -6,6 +7,10 @@ import { migrationDatabase } from "./support/migration-database";
 
 test("copy week: atomic preview, replacement, merge, conflict checks and tenant isolation", async () => {
   const db = await migrationDatabase();
+  // Shift requests require future work; keep DST fixtures fixed and this workflow future-dated.
+  const structureWeek = weekStart(
+    addDays(new Date().toISOString().slice(0, 10), 370),
+  );
   try {
     await db.exec(`create role anon;create role authenticated;create schema auth;
  create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz,raw_user_meta_data jsonb default '{}');
@@ -161,19 +166,19 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
       2,
       "repeated merge creates no duplicates",
     );
-    await commit("2026-10-25", "2026-11-08", "structure");
+    await commit("2026-10-25", structureWeek, "structure");
     const structure = await row(
       "select * from public.schedules where organization_id=$1 and week_start=$2",
-      [org, "2026-11-08"],
+      [org, structureWeek],
     );
     assert.equal((await shifts(structure.id)).length, 2);
     assert.ok((await shifts(structure.id)).every((s) => !s.employee_id));
-    await commit("2026-10-25", "2026-11-08", "assignments");
+    await commit("2026-10-25", structureWeek, "assignments");
     assert.deepEqual(
       new Set((await shifts(structure.id)).map((s) => s.employee_id)),
       new Set(employees),
     );
-    await commit("2026-10-25", "2026-11-08", "assignments");
+    await commit("2026-10-25", structureWeek, "assignments");
     assert.equal((await shifts(structure.id)).length, 2);
     const stale = await copy();
     await cmd(
@@ -312,7 +317,7 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
         [org],
       )
     ).n;
-    await copy("2026-10-25", "2026-11-08", "structure", "replace");
+    await copy("2026-10-25", structureWeek, "structure", "replace");
     assert.equal(
       (
         await row(
@@ -323,7 +328,7 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
       auditsBefore,
       "preview rolls back deferred assignment audits",
     );
-    await commit("2026-10-25", "2026-11-08", "structure", "replace");
+    await commit("2026-10-25", structureWeek, "structure", "replace");
     assert.deepEqual(
       (
         await db.query(
