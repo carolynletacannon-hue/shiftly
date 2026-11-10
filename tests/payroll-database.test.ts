@@ -101,9 +101,11 @@ test("payroll database: RLS, append-only rates, snapshots, revision approval, is
     );
     await as(3);
     assert.equal(await source(org), null);
+    // COUNT is int8: pg returns strings, while PGlite may return numbers.
+    // Normalize to BigInt without changing driver parsers or losing precision.
     assert.equal(
-      (await row("select count(*) n from public.payroll_rates")).n,
-      0,
+      BigInt((await row("select count(*) n from public.payroll_rates")).n),
+      BigInt(0),
     );
     await assert.rejects(() => manage("settings", config, org), /Manager/);
     await as(2);
@@ -162,13 +164,13 @@ test("payroll database: RLS, append-only rates, snapshots, revision approval, is
     const first = await approve(original, report);
     await as(1);
     assert.equal(
-      (await row("select count(*) n from public.payroll_reports")).n,
-      0,
+      BigInt((await row("select count(*) n from public.payroll_reports")).n),
+      BigInt(0),
     );
     await as(3);
     assert.equal(
-      (await row("select count(*) n from public.payroll_reports")).n,
-      0,
+      BigInt((await row("select count(*) n from public.payroll_reports")).n),
+      BigInt(0),
     );
     await as(0);
     assert.equal(
