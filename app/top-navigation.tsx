@@ -8,8 +8,10 @@ import { useEffect, useRef, useState } from "react";
 export function TopNavigation({
   workspace,
   timeClock = false,
+  payroll = false,
 }: {
   timeClock?: boolean;
+  payroll?: boolean;
   workspace?: { id: string; role: string; name?: string };
 }) {
   const pathname = usePathname();
@@ -80,7 +82,7 @@ export function TopNavigation({
     ))
       observer.observe(child);
     return () => observer.disconnect();
-  }, [workspace?.id, workspace?.role, workspace?.name, timeClock]);
+  }, [workspace?.id, workspace?.role, workspace?.name, timeClock, payroll]);
   useEffect(() => {
     setOpen(false);
   }, [pathname, collapsed]);
@@ -127,6 +129,14 @@ export function TopNavigation({
               {
                 href: `${base}/time-clock`,
                 label: admin ? "Time Clock" : "My Timesheet",
+              },
+            ]
+          : []),
+        ...(payroll
+          ? [
+              {
+                href: `${base}/payroll`,
+                label: admin ? "Payroll" : "My Pay Estimates",
               },
             ]
           : []),
