@@ -8,6 +8,15 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 export const kioskCookie = "__Host-meadowmark-kiosk";
+// Browsers cap persistent cookies at 400 days; renew on startup and hourly.
+export const kioskCookieMaxAge = 400 * 86400;
+// Stable per-generation candidate makes lost/concurrent rotation responses retryable.
+// The existing high-entropy PIN pepper never leaves the server; knowing the old device secret alone
+// cannot predict its successor.
+export const nextKioskToken = (secret: string) =>
+  createHmac("sha256", process.env.TIME_CLOCK_PIN_PEPPER!)
+    .update(`meadowmark-kiosk-renewal-v1:${secret}`)
+    .digest("base64url");
 export const token = () => randomBytes(32).toString("base64url");
 export const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");

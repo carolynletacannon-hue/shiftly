@@ -5,6 +5,7 @@ import {
   digest,
   hashPin,
   kioskCookie,
+  kioskCookieMaxAge,
   newPin,
   pinLookup,
   token,
@@ -131,7 +132,7 @@ export async function clockAction(_: Result, form: FormData): Promise<Result> {
       httpOnly: true,
       sameSite: "strict",
       path: "/",
-      maxAge: 12 * 3600,
+      maxAge: kioskCookieMaxAge,
     });
     return { activated: true };
   }

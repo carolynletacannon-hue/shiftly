@@ -152,6 +152,23 @@ try {
     path: "work/phase9-kiosk-mobile.png",
     fullPage: true,
   });
+  // A lost hourly rotation response must not demand manager reenrollment.
+  await page.route("**/api/kiosk", async (route) => {
+    if (route.request().postDataJSON().command === "rotate")
+      return route.abort();
+    return route.fallback();
+  });
+  await page.clock.fastForward(3600000);
+  assert.equal(
+    await page
+      .getByRole("heading", { name: "Manager authorization required" })
+      .count(),
+    0,
+  );
+  await page.reload();
+  await page.getByRole("heading", { name: "Synthetic Meadow Team" }).waitFor();
+  await enter();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
   // Authorization errors must not navigate until local exit is confirmed.
   await page.unroute("**/api/kiosk");
   let allowExit = false;
@@ -160,19 +177,76 @@ try {
     await route.fulfill({
       status: body.command === "end" && allowExit ? 200 : 403,
       contentType: "application/json",
-      body: JSON.stringify(body.command === "end" && allowExit
-        ? { ok: true } : { error: "Request unavailable" }),
+      body: JSON.stringify(
+        body.command === "end" && allowExit
+          ? { ok: true }
+          : { error: "Kiosk authorization required" },
+      ),
     });
   });
   await page.goto(origin + "/kiosk");
-  await page.getByRole("heading", { name: "Manager authorization required" }).waitFor();
-  await page.getByRole("button", { name: "Clear kiosk mode & sign in" }).click();
+  await page
+    .getByRole("heading", { name: "Manager authorization required" })
+    .waitFor();
+  await page
+    .getByRole("button", { name: "Clear kiosk mode & sign in" })
+    .click();
   await page.waitForFunction(() => !document.querySelector("button")?.disabled);
   assert.equal(new URL(page.url()).pathname, "/kiosk");
+  assert.equal(await page.getByLabel("Employee PIN").count(), 0);
+  await page.reload();
+  await page
+    .getByRole("heading", { name: "Kiosk mode ended on this browser" })
+    .waitFor();
+  assert.equal(await page.getByLabel("Employee PIN").count(), 0);
   allowExit = true;
-  await page.getByRole("button", { name: "Clear kiosk mode & sign in" }).click();
+  await page.getByRole("button", { name: "Retry sign out" }).click();
   await page.waitForURL(origin + "/login");
   await page.getByRole("heading", { name: "Welcome back" }).waitFor();
+  // A new browser context restores a persistent cookie without a manager session.
+  const durable = await browser.newContext();
+  await durable.addCookies([
+    {
+      name: "__Host-meadowmark-kiosk",
+      value: "a".repeat(43),
+      domain: new URL(origin).hostname,
+      path: "/",
+      secure: true,
+      httpOnly: true,
+      sameSite: "Strict",
+      expires: Math.floor(Date.now() / 1000) + 400 * 86400,
+    },
+  ]);
+  const saved = await durable.storageState();
+  await durable.close();
+  const restarted = await browser.newContext({ storageState: saved });
+  const restartedPage = await restarted.newPage();
+  await restartedPage.route("**/api/kiosk", async (route) => {
+    assert.match(
+      route.request().headers().cookie || "",
+      /__Host-meadowmark-kiosk=/,
+    );
+    const command = route.request().postDataJSON().command;
+    await route.fulfill({
+      json:
+        command === "info"
+          ? {
+              name: "Restarted workplace",
+              timezone: "America/Denver",
+              now: new Date().toISOString(),
+            }
+          : { ok: true },
+    });
+  });
+  await restartedPage.goto(origin + "/kiosk");
+  await restartedPage
+    .getByRole("heading", { name: "Restarted workplace" })
+    .waitFor();
+  assert.equal(
+    (await restarted.cookies()).filter((c) => c.name.startsWith("sb-")).length,
+    0,
+  );
+  await restarted.close();
   // Actual route/middleware checks, without mocked API responses.
   const context = await browser.newContext();
   const api = context.request;
@@ -212,8 +286,52 @@ try {
   await page.goto(origin + "/demo");
   assert.ok(await page.locator("main").count());
   assert.deepEqual(errors, []);
+  // Exit waits for an in-flight cookie rotation before clearing authorization.
+  const raceContext = await browser.newContext();
+  const racePage = await raceContext.newPage();
+  let releaseRotation;
+  const rotationGate = new Promise((resolve) => {
+    releaseRotation = resolve;
+  });
+  let rotationStarted;
+  const started = new Promise((resolve) => {
+    rotationStarted = resolve;
+  });
+  let ended = false;
+  await racePage.route("**/api/kiosk", async (route) => {
+    const command = route.request().postDataJSON().command;
+    if (command === "rotate") {
+      rotationStarted();
+      await rotationGate;
+    }
+    if (command === "end") ended = true;
+    await route.fulfill({
+      json:
+        command === "info"
+          ? {
+              name: "Exit race workplace",
+              timezone: "America/Denver",
+              now: new Date().toISOString(),
+            }
+          : { ok: true },
+    });
+  });
+  await racePage.goto(origin + "/kiosk");
+  await started;
+  await racePage.getByText("End kiosk mode", { exact: true }).click();
+  await racePage
+    .getByRole("button", { name: "End & revoke this kiosk" })
+    .click();
+  await racePage
+    .getByRole("heading", { name: "Kiosk mode ended on this browser" })
+    .waitFor();
+  assert.equal(ended, false, "exit must wait for the renewal response");
+  releaseRotation();
+  await racePage.waitForURL(origin + "/login");
+  assert.equal(ended, true);
+  await raceContext.close();
   console.log(
-    "Browser checks passed: keypad, wrong PIN, valid actions, interrupted retry, inactivity reset, responsive layouts, origin rejection, handoff headers, workspace isolation, homepage and demo.",
+    "Browser checks passed: persistent cookie restart, lost rotation response, reload, durable local exit, rotation/exit race, keypad, wrong PIN, valid actions, interrupted retry, inactivity reset, responsive layouts, origin rejection, handoff headers, workspace isolation, homepage and demo.",
   );
 } finally {
   await browser.close();
