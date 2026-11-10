@@ -1,3 +1,4 @@
+import { payrollEnabled } from "@/lib/payroll/feature";
 import { timeClockEnabled } from "@/lib/time-clock/security";
 import { TopNavigation } from "./top-navigation";
 export function Frame({
@@ -12,7 +13,11 @@ export function Frame({
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
-      <TopNavigation workspace={workspace} timeClock={timeClockEnabled()} />
+      <TopNavigation
+        workspace={workspace}
+        timeClock={timeClockEnabled()}
+        payroll={payrollEnabled()}
+      />
       <main id="main-content" className="account-page">
         {children}
       </main>
