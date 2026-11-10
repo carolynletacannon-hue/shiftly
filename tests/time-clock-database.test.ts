@@ -12,10 +12,13 @@ test("time clock database: roles, enrollment, PIN lockout, punches, idempotency,
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  grant usage on schema public,auth to authenticated,anon,service_role;grant execute on function auth.uid() to authenticated,anon,service_role;`);
     const dir = new URL("../supabase/migrations/", import.meta.url);
+    let persistentMigration = "";
     for (const file of (await readdir(dir))
       .filter((f) => f.endsWith(".sql"))
       .sort())
-      await db.exec(await readFile(new URL(file, dir), "utf8"));
+      if (file.includes("persistent_kiosk"))
+        persistentMigration = await readFile(new URL(file, dir), "utf8");
+      else await db.exec(await readFile(new URL(file, dir), "utf8"));
     const row = async (sql: string, args: unknown[] = []) =>
       (await db.query<any>(sql, args)).rows[0];
     const users = Array.from({ length: 4 }, () => randomUUID());
@@ -100,6 +103,29 @@ test("time clock database: roles, enrollment, PIN lockout, punches, idempotency,
       token_hash: digest("device"),
     });
     assert.ok(k.id);
+    const revokedLegacy = await manage("enroll", {
+      name: "Revoked legacy tablet",
+      token_hash: digest("legacy-revoked"),
+    });
+    await manage("revoke", { kiosk_id: revokedLegacy.id });
+    await db.exec("reset role");
+    await db.query(
+      "update public.time_kiosks set expires_at=now()-interval '3 days' where id=$1",
+      [k.id],
+    );
+    assert.ok(persistentMigration);
+    await db.exec(persistentMigration);
+    assert.equal(
+      (
+        await row("select expires_at from public.time_kiosks where id=$1", [
+          k.id,
+        ])
+      ).expires_at,
+      null,
+    );
+    await service();
+    assert.ok((await kiosk("info", {}, digest("legacy-revoked"))).error);
+    await as(0);
     const pinHash = hashPin("1234");
     await manage("pin", {
       employee_id: employee,
@@ -116,6 +142,17 @@ test("time clock database: roles, enrollment, PIN lockout, punches, idempotency,
       /authorization/,
     );
     assert.equal((await kiosk("info")).name, "Synthetic Time Alpha");
+    // A browser restart supplies only its durable cookie; no account is involved.
+    for (const age of ["13 hours", "7 days", "90 days"]) {
+      await db.exec("reset role");
+      await db.query(
+        "update public.time_kiosks set created_at=now()-$1::interval,expires_at=now()-interval '1 hour',last_activity=now()-$1::interval where id=$2",
+        [age, k.id],
+      );
+      await service();
+      assert.equal((await kiosk("info")).name, "Synthetic Time Alpha", age);
+    }
+
     for (let i = 0; i < 5; i++)
       assert.equal(
         (await kiosk("lookup", { lookup_hash: digest("wrong") })).hash,
@@ -152,6 +189,14 @@ test("time clock database: roles, enrollment, PIN lockout, punches, idempotency,
         request_id,
         challenge_hash: digest("challenge"),
       });
+    await db.exec("reset role");
+    await db.query(
+      "update shiftly_private.kiosk_credentials set challenge_expires=now()-interval '1 second' where kiosk_id=$1",
+      [k.id],
+    );
+    await service();
+    assert.match((await punch("in")).error, /PIN again/);
+    await authorize();
     const request = randomUUID();
     const receipt = await punch("in", request);
     assert.equal(receipt.ok, true);
@@ -298,13 +343,40 @@ test("time clock database: roles, enrollment, PIN lockout, punches, idempotency,
       /inside/,
     );
     await service();
+    await authorize();
     await kiosk("rotate", { token_hash: digest("rotated") });
-    assert.ok((await kiosk("info")).error);
+    // Lost renewal response: the browser can keep using and retrying the old secret.
+    assert.ok(!(await kiosk("info")).error);
+    await kiosk("rotate", { token_hash: digest("rotated") });
     assert.ok(!(await kiosk("info", {}, digest("rotated"))).error);
+    // Renewal preserves an employee's independently short-lived challenge.
+    await db.exec("reset role");
+    const retainedChallenge = await row(
+      "select challenge_hash,challenge_expires>clock_timestamp() valid from shiftly_private.kiosk_credentials where kiosk_id=$1",
+      [k.id],
+    );
+    assert.equal(retainedChallenge.challenge_hash, digest("challenge"));
+    assert.equal(retainedChallenge.valid, true);
+    await service();
+    // Once acknowledged, replay of the retired credential grants no authority.
+    assert.ok((await kiosk("info")).error);
     await as(0);
     await manage("revoke", { kiosk_id: k.id });
     await service();
     assert.ok((await kiosk("info", {}, digest("rotated"))).error);
+    assert.ok(
+      (
+        await kiosk(
+          "punch",
+          {
+            action: "in",
+            request_id: randomUUID(),
+            challenge_hash: digest("challenge"),
+          },
+          digest("rotated"),
+        )
+      ).error,
+    );
     await as(0);
     const next = await manage("enroll", {
       name: "Reauthorized",
@@ -317,8 +389,49 @@ test("time clock database: roles, enrollment, PIN lockout, punches, idempotency,
       [next.id],
     );
     await service();
-    assert.ok((await kiosk("info")).error);
+    // Legacy deadline is no longer an authorization boundary (including offline devices).
+    assert.ok(!(await kiosk("info")).error);
     await as(0);
+    await manage("settings", { enabled: false });
+    await db.exec("reset role");
+    await db.query(
+      "update shiftly_private.kiosk_credentials set attempts=120 where kiosk_id=$1",
+      [next.id],
+    );
+    await service();
+    assert.equal(
+      (await kiosk("end")).ok,
+      true,
+      "exit survives disabled workplace and throttling",
+    );
+    assert.ok(
+      (
+        await kiosk("punch", {
+          action: "in",
+          request_id: randomUUID(),
+          challenge_hash: digest("challenge"),
+        })
+      ).error,
+    );
+    await db.exec("reset role");
+    assert.ok(
+      (
+        await row("select revoked_at from public.time_kiosks where id=$1", [
+          next.id,
+        ])
+      ).revoked_at,
+    );
+    assert.equal(
+      (
+        await row(
+          "select count(*)::int n from public.time_audit where kiosk_id=$1 and action='end'",
+          [next.id],
+        )
+      ).n,
+      1,
+    );
+    await as(0);
+    await manage("settings", { enabled: true });
     const third = await manage("enroll", {
       name: "Archive Test",
       token_hash: digest("archive"),

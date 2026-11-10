@@ -18,14 +18,41 @@ const labels: Record<string, string> = {
   break_start: "Start Unpaid Break",
   break_end: "End Unpaid Break",
 };
-async function call(body: object) {
-  const response = await fetch("/api/kiosk", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
-  return response.json();
+let credentialRequest: Promise<unknown> = Promise.resolve();
+async function call(body: { command: string; [key: string]: unknown }) {
+  if (!["rotate", "end"].includes(body.command)) return request(body);
+  const perform = () => {
+    if (
+      body.command === "rotate" &&
+      localStorage.getItem("meadowmark-kiosk-exit")
+    )
+      return Promise.resolve({ ok: true });
+    return request(body);
+  };
+  // Serialize all cookie-changing responses, including exit, across browser tabs.
+  if (navigator.locks)
+    return navigator.locks.request("meadowmark-kiosk-renewal", perform);
+  const result = credentialRequest.then(perform, perform);
+  credentialRequest = result.catch(() => {});
+  return result;
+}
+async function request(body: object) {
+  // A hung renewal must not hold the exit lock indefinitely.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch("/api/kiosk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (response.status >= 500) throw Error("Connection unavailable");
+    return await response.json();
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 export function Kiosk() {
   const [info, setInfo] = useState<Info>();
@@ -34,6 +61,7 @@ export function Kiosk() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
+  const [exiting, setExiting] = useState(false);
   const [clock, setClock] = useState("");
   const base = useRef({ at: 0, mono: 0 });
   const activity = useRef(0);
@@ -51,19 +79,38 @@ export function Kiosk() {
   }
   useEffect(() => {
     let live = true;
-    call({ command: "info" })
-      .then((data) => {
-        if (!live) return;
-        if (data.error) {
-          setUnauthorized(true);
-          setMessage(data.error);
-        } else {
-          setInfo(data);
-          base.current = { at: Date.parse(data.now), mono: performance.now() };
-          activity.current = performance.now();
-        }
-      })
-      .catch(() => setMessage("Unable to connect. Reload to try again."));
+    const connect = () => {
+      if (localStorage.getItem("meadowmark-kiosk-exit")) {
+        void end();
+        return;
+      }
+      void call({ command: "info" })
+        .then((data) => {
+          if (!live) return;
+          if (data.error) {
+            setUnauthorized(data.error === "Kiosk authorization required");
+            setMessage(data.error);
+          } else {
+            setInfo(data);
+            base.current = {
+              at: Date.parse(data.now),
+              mono: performance.now(),
+            };
+            activity.current = performance.now();
+            setMessage("");
+            void call({ command: "rotate" }).catch(() => {});
+          }
+        })
+        .catch(() =>
+          setMessage("Connection unavailable. Reconnecting automatically…"),
+        );
+    };
+    connect();
+    const reconnect = setInterval(() => {
+      if (!base.current.at || localStorage.getItem("meadowmark-kiosk-exit"))
+        connect();
+    }, 30000);
+    window.addEventListener("online", connect);
     const tick = setInterval(() => {
       if (base.current.at)
         setClock(
@@ -81,14 +128,14 @@ export function Kiosk() {
         .then((data) => {
           reset();
           if (data.error) {
-            setUnauthorized(true);
+            setUnauthorized(data.error === "Kiosk authorization required");
             setMessage(data.error);
           }
         })
         .catch(() => {
-          setUnauthorized(true);
+          reset();
           setMessage(
-            "Reconnect and ask your manager to authorize this kiosk again.",
+            "Connection unavailable. Reconnect to continue; this device remains enrolled.",
           );
         });
     }, 3600000);
@@ -98,12 +145,15 @@ export function Kiosk() {
     window.addEventListener("pageshow", onPage);
     return () => {
       live = false;
+      clearInterval(reconnect);
+      window.removeEventListener("online", connect);
       clearInterval(tick);
       clearInterval(rotation);
       window.removeEventListener("pageshow", onPage);
     };
   }, []);
   async function verify() {
+    if (localStorage.getItem("meadowmark-kiosk-exit")) return;
     setBusy(true);
     setMessage("");
     activity.current = performance.now();
@@ -125,7 +175,8 @@ export function Kiosk() {
     }
   }
   async function punch(action: string) {
-    if (!person || busy) return;
+    if (!person || busy || localStorage.getItem("meadowmark-kiosk-exit"))
+      return;
     setBusy(true);
     activity.current = performance.now();
     retry.current ||= {
@@ -153,6 +204,11 @@ export function Kiosk() {
     }
   }
   async function end() {
+    // Durable local lock prevents resumed punches even if the whole site is offline.
+    localStorage.setItem("meadowmark-kiosk-exit", "pending");
+    setExiting(true);
+    reset();
+    setInfo(undefined);
     setBusy(true);
     try {
       const data = await call({ command: "end" });
@@ -161,10 +217,11 @@ export function Kiosk() {
         return;
       }
       reset();
+      localStorage.removeItem("meadowmark-kiosk-exit");
       window.location.replace("/login");
     } catch {
       setMessage(
-        "Unable to end kiosk mode. Retry or ask a manager to revoke it remotely.",
+        "Kiosk locked locally. Reconnect to finish signing out, or ask a manager to revoke it remotely.",
       );
     } finally {
       setBusy(false);
@@ -190,7 +247,17 @@ export function Kiosk() {
         <div role="status" aria-live="polite" className="kiosk-message">
           {message}
         </div>
-        {unauthorized ? (
+        {exiting ? (
+          <>
+            <h2>Kiosk mode ended on this browser</h2>
+            <p>
+              Waiting to clear the secure device cookie and return to sign in.
+            </p>
+            <button className="button secondary" disabled={busy} onClick={end}>
+              Retry sign out
+            </button>
+          </>
+        ) : unauthorized ? (
           <>
             <h2>Manager authorization required</h2>
             <p>This device must be enrolled by an owner or manager.</p>
@@ -320,7 +387,7 @@ export function Kiosk() {
             )}
           </>
         )}
-        {!unauthorized && (
+        {!unauthorized && !exiting && (
           <details className="kiosk-end">
             <summary>End kiosk mode</summary>
             <p>

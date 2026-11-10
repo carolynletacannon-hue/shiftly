@@ -80,6 +80,7 @@ export default async function Page({
     kiosks,
     requests,
     audits,
+    deviceAudits,
     schedule,
     open,
     currentWeek,
@@ -111,6 +112,15 @@ export default async function Page({
       .eq("organization_id", id)
       .order("created_at", { ascending: false })
       .limit(1000),
+    manager
+      ? db
+          .from("time_audit")
+          .select("id,kiosk_id,action,created_at")
+          .eq("organization_id", id)
+          .in("action", ["enroll", "revoke", "end"])
+          .order("created_at", { ascending: false })
+          .limit(1000)
+      : Promise.resolve({ data: [], error: null }),
     db
       .from("published_shifts")
       .select("employee_id,starts_at,ends_at,shift_group_id")
@@ -140,6 +150,7 @@ export default async function Page({
       kiosks,
       requests,
       audits,
+      deviceAudits,
       schedule,
       open,
       currentWeek,
@@ -305,8 +316,9 @@ export default async function Page({
           <h2>Activate on this device</h2>
           <p>
             Activation signs you out and limits this browser to the kiosk.
-            Devices expire after 12 hours and require a new manager enrollment.
-            Keep this page away from employees until activation is complete.
+            Devices remain authorized until kiosk mode is ended or a manager
+            revokes them. Keep this page away from employees until activation is
+            complete.
           </p>
           <ClockForm org={id} command="enroll">
             <label>
@@ -324,15 +336,24 @@ export default async function Page({
             <article key={k.id}>
               <h3>{k.name}</h3>
               <p>
-                {k.revoked_at
-                  ? "Revoked"
-                  : Date.parse(k.expires_at) < Date.parse(now)
-                    ? "Expired"
-                    : "Authorized"}{" "}
-                · Last activity:{" "}
-                {k.last_activity ? fmt(k.last_activity) : "No activity yet"} ·
-                Expires {fmt(k.expires_at)}
+                {k.revoked_at ? "Revoked" : "Authorized"} · Last activity:{" "}
+                {k.last_activity ? fmt(k.last_activity) : "No activity yet"}
               </p>
+              <details>
+                <summary>Activation and revocation history</summary>
+                {deviceAudits.data
+                  ?.filter((event) => event.kiosk_id === k.id)
+                  .map((event) => (
+                    <p key={event.id}>
+                      {event.action === "enroll"
+                        ? "Activated by manager"
+                        : event.action === "end"
+                          ? "Ended on device"
+                          : "Revoked by manager"}{" "}
+                      · {fmt(event.created_at)}
+                    </p>
+                  ))}
+              </details>
               {!k.revoked_at && (
                 <ClockForm org={id} command="revoke">
                   <input type="hidden" name="kiosk_id" value={k.id} />

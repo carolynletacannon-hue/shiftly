@@ -3,6 +3,8 @@ import { clockService } from "@/lib/time-clock/server";
 import {
   digest,
   kioskCookie,
+  kioskCookieMaxAge,
+  nextKioskToken,
   pinLookup,
   timeClockEnabled,
   token,
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest) {
       // The normal handler reports malformed requests.
     }
   }
-  const result = await handle(req);
+  const result = await handle(req, ending);
   if (!ending) return result;
   // Local exit must work even if disabled, expired, revoked, or offline.
   // The handler still attempts to revoke a usable credential first.
@@ -62,8 +64,8 @@ export async function POST(req: NextRequest) {
   response.headers.set("Clear-Site-Data", '"cache", "storage"');
   return response;
 }
-async function handle(req: NextRequest) {
-  if (!timeClockEnabled())
+async function handle(req: NextRequest, ending = false) {
+  if (!timeClockEnabled() && !ending)
     return NextResponse.json(
       { error: "Time clock unavailable" },
       { status: 404, headers },
@@ -156,7 +158,7 @@ async function handle(req: NextRequest) {
         challenge_hash: digest(body.challenge),
       });
     } else if (body.command === "rotate") {
-      rotated = token();
+      rotated = nextKioskToken(secret);
       result = await call("rotate", { token_hash: digest(rotated) });
     } else if (["info", "end"].includes(body.command)) {
       result = await call(body.command);
@@ -176,7 +178,7 @@ async function handle(req: NextRequest) {
         secure: true,
         sameSite: "strict",
         path: "/",
-        maxAge: 12 * 3600,
+        maxAge: kioskCookieMaxAge,
       });
     if (body.command === "end")
       response.cookies.set(kioskCookie, "", {

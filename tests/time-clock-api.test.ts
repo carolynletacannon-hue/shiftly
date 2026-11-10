@@ -8,6 +8,8 @@ import {
   digest,
   hashPin,
   kioskCookie,
+  kioskCookieMaxAge,
+  nextKioskToken,
   pinLookup,
   token,
 } from "../lib/time-clock/security";
@@ -33,8 +35,9 @@ test("kiosk API: origin/cookie/flag gates, private PIN verification, rotation an
     assert.ok(!raw.includes('"pin":"'));
     const body = JSON.parse(raw);
     seen.push(body);
-    const data = credentialError ? { error: "Kiosk authorization required" } :
-      body.command === "info"
+    const data = credentialError
+      ? { error: "Kiosk authorization required" }
+      : body.command === "info"
         ? {
             org,
             name: "Synthetic Team",
@@ -48,7 +51,9 @@ test("kiosk API: origin/cookie/flag gates, private PIN verification, rotation an
           : body.command === "authorize"
             ? { name: "Example", status: "out" }
             : { ok: true };
-    res.writeHead(serviceFailure ? 503 : 200, { "Content-Type": "application/json" });
+    res.writeHead(serviceFailure ? 503 : 200, {
+      "Content-Type": "application/json",
+    });
     res.end(JSON.stringify(data));
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -144,6 +149,22 @@ test("kiosk API: origin/cookie/flag gates, private PIN verification, rotation an
         cookie.includes("SameSite=strict"),
     );
     assert.notEqual(seen.at(-1)?.payload.token_hash, digest(secret));
+    assert.equal(rotated.cookies.get(kioskCookie)?.maxAge, kioskCookieMaxAge);
+    const retryRotation = await call({ command: "rotate" });
+    assert.equal(
+      retryRotation.cookies.get(kioskCookie)?.value,
+      rotated.cookies.get(kioskCookie)?.value,
+    );
+    assert.equal(
+      rotated.cookies.get(kioskCookie)?.value,
+      nextKioskToken(secret),
+    );
+    serviceFailure = true;
+    const offlineRotation = await call({ command: "rotate" });
+    assert.equal(offlineRotation.status, 503);
+    assert.equal(offlineRotation.headers.get("set-cookie"), null);
+    serviceFailure = false;
+    assert.equal((await call({ command: "info" })).status, 200);
     // Unknown, expired and revoked credentials all return the same narrow DB error.
     credentialError = true;
     for (const state of ["unknown", "expired", "revoked"]) {
@@ -161,29 +182,52 @@ test("kiosk API: origin/cookie/flag gates, private PIN verification, rotation an
       const ended = await call({ command: "end" }, secret);
       assert.equal(ended.cookies.get(kioskCookie)?.maxAge, 0);
     }
-    const mismatch = await call({ command: "end" }, secret, "https://evil.vercel.app");
+    const mismatch = await call(
+      { command: "end" },
+      secret,
+      "https://evil.vercel.app",
+    );
     assert.equal(mismatch.status, 403);
     assert.equal(mismatch.headers.get("set-cookie"), null);
     for (const origin of ["", "null"]) {
-      assert.equal((await call({ command: "end" }, secret, origin)).status, 403);
+      assert.equal(
+        (await call({ command: "end" }, secret, origin)).status,
+        403,
+      );
     }
-    const crossSite = await POST(new NextRequest("https://clock.example.test/api/kiosk", {
-      method: "POST",
-      headers: { origin: "https://clock.example.test", "sec-fetch-site": "cross-site" },
-      body: JSON.stringify({ command: "end" }),
-    }));
+    const crossSite = await POST(
+      new NextRequest("https://clock.example.test/api/kiosk", {
+        method: "POST",
+        headers: {
+          origin: "https://clock.example.test",
+          "sec-fetch-site": "cross-site",
+        },
+        body: JSON.stringify({ command: "end" }),
+      }),
+    );
     assert.equal(crossSite.status, 403);
     const deployment = "https://synthetic-deployment.vercel.app";
-    const request = (path: string, cookie = "") => new NextRequest(deployment + path, {
-      headers: cookie ? { cookie } : {},
-    });
-    assert.equal((await proxy(request("/login", `${kioskCookie}=${secret}`))).headers.get("location"), deployment + "/kiosk");
+    const request = (path: string, cookie = "") =>
+      new NextRequest(deployment + path, {
+        headers: cookie ? { cookie } : {},
+      });
+    assert.equal(
+      (await proxy(request("/login", `${kioskCookie}=${secret}`))).headers.get(
+        "location",
+      ),
+      deployment + "/kiosk",
+    );
     process.env.TIME_CLOCK_ENABLED = "false";
-    const exit = await POST(new NextRequest(deployment + "/api/kiosk", {
-      method: "POST",
-      headers: { origin: deployment, cookie: `${kioskCookie}=${secret}; sb-synthetic-auth-token.0=old-manager-session` },
-      body: JSON.stringify({ command: "end" }),
-    }));
+    const exit = await POST(
+      new NextRequest(deployment + "/api/kiosk", {
+        method: "POST",
+        headers: {
+          origin: deployment,
+          cookie: `${kioskCookie}=${secret}; sb-synthetic-auth-token.0=old-manager-session`,
+        },
+        body: JSON.stringify({ command: "end" }),
+      }),
+    );
     assert.deepEqual(await exit.json(), { ok: true });
     assert.equal(exit.cookies.get(kioskCookie)?.maxAge, 0);
     assert.equal(exit.cookies.get("sb-synthetic-auth-token.0")?.maxAge, 0);
@@ -191,7 +235,10 @@ test("kiosk API: origin/cookie/flag gates, private PIN verification, rotation an
     const publicKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     delete process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     for (let i = 0; i < 2; i++)
-      assert.equal((await proxy(request("/login"))).headers.get("location"), null);
+      assert.equal(
+        (await proxy(request("/login"))).headers.get("location"),
+        null,
+      );
     if (publicKey) process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = publicKey;
     process.env.TIME_CLOCK_ENABLED = "true";
     const ended = await call({ command: "end" });
