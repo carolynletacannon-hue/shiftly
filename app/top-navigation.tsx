@@ -1,4 +1,5 @@
 "use client";
+import { ProductSwitcher } from "./product-switcher";
 import { NotificationBell } from "./notification-bell";
 import { Brand } from "./brand";
 import Link from "next/link";
@@ -84,6 +85,7 @@ export function TopNavigation({
       >
         <Brand />
       </Link>
+      <ProductSwitcher organizationId={workspace?.id} />
       <button
         className="mobile-menu button secondary"
         type="button"

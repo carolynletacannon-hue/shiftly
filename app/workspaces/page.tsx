@@ -15,22 +15,25 @@ export default async function Page({
     .select("role,organization_id,organizations(name,timezone)")
     .eq("user_id", user.id);
   if (error)
-    throw new Error(
-      "Unable to load your workplaces. Please try again.",
-    );
+    throw new Error("Unable to load your workplaces. Please try again.");
   const active = (await cookies()).get("shiftly-workspace")?.value;
   return (
     <Frame>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">YOUR WORKPLACES</p>
-          <h1>Choose a workspace</h1>
+          <p className="eyebrow">YOUR MEADOWMARK ACCOUNT</p>
+          <h1>Choose your workplace</h1>
           <p className="subtitle">Signed in as {user.email}</p>
         </div>
         <form action={logout}>
           <button className="button secondary">Sign out</button>
         </form>
       </div>
+      <p className="shared-account-intro">
+        One Meadowmark account for your workplaces and products. Choose a
+        workplace to continue into Workforce. Your existing invitations and team
+        access stay with your account.
+      </p>
       <Message text={(await searchParams).message} />
       <div className="workspace-grid">
         {data?.map((m) => {
@@ -40,6 +43,7 @@ export default async function Page({
           };
           return (
             <section className="panel workspace-card" key={m.organization_id}>
+              <p className="eyebrow">MEADOWMARK WORKFORCE</p>
               <h2>{org.name}</h2>
               <p>
                 {org.timezone} · {m.role}
@@ -51,7 +55,9 @@ export default async function Page({
                   value={m.organization_id}
                 />
                 <button className="button primary">
-                  {active === m.organization_id ? "Continue" : "Open workspace"}
+                  {active === m.organization_id
+                    ? "Continue to Workforce"
+                    : "Open Workforce"}
                 </button>
               </form>
             </section>
