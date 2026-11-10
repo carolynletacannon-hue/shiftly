@@ -163,7 +163,7 @@ function session(id) {
           const result = await page.evaluate(() => {
             const rects = [
               ...document.querySelectorAll(
-                ".app-header > .brand, .app-header > .notifications-link, .workspace-menu > summary, .mobile-menu, .app-navigation a",
+                ".app-header > .brand, .product-switcher > summary, .app-header > .notifications-link, .workspace-menu > summary, .mobile-menu, .app-navigation a",
               ),
             ]
               .filter(

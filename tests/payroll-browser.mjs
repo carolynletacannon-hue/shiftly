@@ -345,7 +345,24 @@ try {
   ]);
   await page.goto(`http://localhost:3200/workspaces/${org}/payroll`);
   assert.equal(new URL(page.url()).pathname, "/kiosk");
-  console.log("PASS employee export denial and kiosk redirect");
+  assert.equal(await page.locator(".product-switcher").count(), 0);
+  // The fixture credential is invalid and the kiosk may clear it on startup.
+  // Reinstall it to exercise the proxy's account-route isolation independently.
+  await context.addCookies([
+    {
+      name: "__Host-meadowmark-kiosk",
+      value: "synthetic",
+      domain: "localhost",
+      path: "/",
+      secure: true,
+    },
+  ]);
+  await page.goto("http://localhost:3200/workspaces");
+  assert.equal(new URL(page.url()).pathname, "/kiosk");
+  assert.equal(await page.locator(".product-switcher").count(), 0);
+  console.log(
+    "PASS employee export denial, kiosk redirect and shared-account isolation",
+  );
 } finally {
   await browser?.close();
   app.kill("SIGTERM");

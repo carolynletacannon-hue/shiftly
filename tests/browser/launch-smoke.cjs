@@ -49,7 +49,26 @@ const fixture = createServer((req, res) => {
               profiles: { display_name: "Sample member" },
             },
           ]
-        : [];
+        : url.searchParams.has("organization_id")
+          ? []
+          : [
+              {
+                organization_id: org,
+                role: id === employee ? "employee" : "owner",
+                organizations: {
+                  name: "Sample workplace",
+                  timezone: "America/Denver",
+                },
+              },
+              {
+                organization_id: "00000000-0000-0000-0000-000000000004",
+                role: "employee",
+                organizations: {
+                  name: "Second sample workplace",
+                  timezone: "America/Denver",
+                },
+              },
+            ];
   if (table === "organizations")
     result = [
       {
@@ -144,6 +163,7 @@ function session(id) {
       path.resolve("work/browser-tools/node_modules/axe-core/axe.min.js");
     const auditFailures = [];
     async function audit(label) {
+      await page.waitForFunction(() => document.title.trim().length > 0);
       await page.addScriptTag({ path: axePath });
       const violations = await page.evaluate(async () =>
         (
@@ -233,6 +253,73 @@ function session(id) {
           includeHidden: true,
         })
         .waitFor({ state: "attached" });
+      await page.goto("http://localhost:3100/workspaces");
+      await page
+        .getByRole("heading", { name: "Choose your workplace" })
+        .waitFor();
+      assert.equal(
+        await page
+          .getByRole("button", {
+            name: /^(Open Workforce|Continue to Workforce)$/,
+          })
+          .count(),
+        2,
+      );
+      for (const width of [375, 768, 1100, 1280, 1440]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await page.getByText("Workforce", { exact: true }).click();
+        await page.getByText("Coming Soon", { exact: true }).first().waitFor();
+        assert.equal(await page.locator(".product-popover a").count(), 1);
+        assert.equal(
+          await page.locator(".product-popover a").getAttribute("href"),
+          "/workspaces",
+        );
+        await audit(`product switcher and account ${width}`);
+        if (id === owner)
+          await page.screenshot({
+            path: `work/product-switcher-${width}.png`,
+            fullPage: true,
+          });
+        await page.keyboard.press("Escape");
+        assert.equal(
+          await page.locator(".product-switcher").getAttribute("open"),
+          null,
+        );
+        await page.locator(".product-switcher summary").focus();
+        await page.keyboard.press("Enter");
+        await page.mouse.click(width - 2, 990);
+        assert.equal(
+          await page.locator(".product-switcher").getAttribute("open"),
+          null,
+        );
+      }
+      await page
+        .getByRole("button", {
+          name: /^(Open Workforce|Continue to Workforce)$/,
+        })
+        .first()
+        .click();
+      await page.waitForURL(`**/workspaces/${org}`);
+      await page.getByRole("heading", { level: 1 }).waitFor();
+      assert.equal(
+        await page.locator(".product-popover a").getAttribute("href"),
+        `/workspaces/${org}`,
+      );
+      for (const width of [375, 768, 1100, 1280, 1440]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await audit(
+          `Workforce navigation ${id === owner ? "manager" : "employee"} ${width}`,
+        );
+        if (id === owner && width === 1440)
+          await page.screenshot({
+            path: "work/workforce-header-1440.png",
+            fullPage: true,
+          });
+      }
+      await page.goto(
+        "http://localhost:3100/workspaces/00000000-0000-0000-0000-000000000099",
+      );
+      await page.waitForURL("**/workspaces?message=Workspace*");
       await page.goto(`http://localhost:3100/workspaces/${org}`);
       await page.getByRole("heading", { level: 1 }).waitFor();
       assert.ok(
@@ -324,6 +411,19 @@ function session(id) {
           ].includes(u.pathname.split("/").pop()),
         )
         .every((u) => u.searchParams.get("organization_id") === `eq.${org}`),
+    );
+    assert.ok(
+      requests
+        .filter(
+          (u) =>
+            u.pathname.endsWith("/memberships") &&
+            !u.searchParams.has("organization_id"),
+        )
+        .every((u) =>
+          [owner, employee].some(
+            (id) => u.searchParams.get("user_id") === `eq.${id}`,
+          ),
+        ),
     );
     assert.deepEqual(auditFailures, [], "accessibility across all screens");
     console.log(

@@ -1,4 +1,5 @@
 "use client";
+import { ProductSwitcher } from "./product-switcher";
 import { NotificationBell } from "./notification-bell";
 import { Brand } from "./brand";
 import Link from "next/link";
@@ -78,7 +79,7 @@ export function TopNavigation({
     const observer = new ResizeObserver(measure);
     observer.observe(header);
     for (const child of header.querySelectorAll(
-      ".brand, nav a, .workspace-menu, .notifications-link",
+      ".brand, .product-switcher, nav a, .workspace-menu, .notifications-link",
     ))
       observer.observe(child);
     return () => observer.disconnect();
@@ -165,6 +166,17 @@ export function TopNavigation({
       >
         <Brand />
       </Link>
+      <ProductSwitcher
+        organizationId={workspace?.id}
+        onOpen={() => {
+          setOpen(false);
+          const account =
+            headerRef.current?.querySelector<HTMLDetailsElement>(
+              ".workspace-menu",
+            );
+          if (account) account.open = false;
+        }}
+      />
       <button
         ref={menuRef}
         className="mobile-menu button secondary"
@@ -172,8 +184,9 @@ export function TopNavigation({
         aria-expanded={collapsed && open}
         aria-controls="app-navigation"
         onClick={() => {
-          const account = headerRef.current?.querySelector("details");
-          if (account) account.open = false;
+          headerRef.current?.querySelectorAll("details").forEach((account) => {
+            account.open = false;
+          });
           setOpen(!open);
         }}
       >
@@ -208,7 +221,14 @@ export function TopNavigation({
       <details
         className="workspace-menu"
         onToggle={(event) => {
-          if (event.currentTarget.open) setOpen(false);
+          if (event.currentTarget.open) {
+            setOpen(false);
+            const product =
+              headerRef.current?.querySelector<HTMLDetailsElement>(
+                ".product-switcher",
+              );
+            if (product) product.open = false;
+          }
         }}
       >
         <summary aria-label="Account and workspace menu">

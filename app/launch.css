@@ -543,6 +543,7 @@ summary {
   color: #56685c;
 }
 .onboarding-list a,
+.dashboard-card > a:not(.button),
 .dashboard-card p a,
 .dashboard-card li a {
   text-decoration: underline;
