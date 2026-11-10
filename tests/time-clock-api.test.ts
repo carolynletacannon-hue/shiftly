@@ -20,7 +20,7 @@ test("kiosk API: origin/cookie/flag gates, private PIN verification, rotation an
   const org = "a0000000-0000-0000-0000-000000000001",
     employee = "a0000000-0000-0000-0000-000000000002",
     secret = token();
-  const hash = hashPin("012345");
+  const hash = hashPin("0123");
   let unknown = false;
   const server = createServer(async (req, res) => {
     assert.equal(req.url, "/rest/v1/rpc/time_clock_kiosk");
@@ -88,20 +88,38 @@ test("kiosk API: origin/cookie/flag gates, private PIN verification, rotation an
     const info = await call({ command: "info" });
     assert.equal(info.headers.get("cache-control"), "private, no-store");
     assert.ok(!(await info.json()).org);
-    const verified = await (
-      await call({ command: "pin", pin: "012345" })
-    ).json();
+    const beforeInvalid = seen.length;
+    for (const pin of [
+      "",
+      "12",
+      "123",
+      "12345",
+      "123456",
+      "12a4",
+      "１２３４",
+      1234,
+    ]) {
+      const invalid = await call({ command: "pin", pin });
+      assert.equal(invalid.status, 400);
+      assert.equal((await invalid.json()).error, "Enter your four-digit PIN");
+    }
+    assert.equal(
+      seen.length,
+      beforeInvalid,
+      "invalid PINs never reach the database",
+    );
+    const verified = await (await call({ command: "pin", pin: "0123" })).json();
     assert.equal(verified.name, "Example");
     assert.match(verified.challenge, /^[A-Za-z0-9_-]{43}$/);
     assert.ok(!verified.hash && !verified.employee_id && !verified.org);
     const lookup = seen.find((r) => r.command === "lookup")!;
-    assert.equal(lookup.payload.lookup_hash, pinLookup(org, "012345"));
+    assert.equal(lookup.payload.lookup_hash, pinLookup(org, "0123"));
     assert.ok(seen.every((r) => r.credential === digest(secret)));
     const authorized = seen.find((r) => r.command === "authorize")!;
     assert.equal(authorized.payload.verified_hash, hash);
     assert.equal(authorized.payload.challenge_hash, digest(verified.challenge));
     unknown = true;
-    const failed = await call({ command: "pin", pin: "999999" });
+    const failed = await call({ command: "pin", pin: "9999" });
     assert.equal(failed.status, 400);
     assert.match((await failed.json()).error, /PIN unavailable/);
     const punch = await call({

@@ -12,7 +12,7 @@ export const token = () => randomBytes(32).toString("base64url");
 export const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 export const validToken = (value: string) => /^[A-Za-z0-9_-]{43}$/.test(value);
-export const newPin = () => randomInt(0, 1000000).toString().padStart(6, "0");
+export const newPin = () => randomInt(0, 10000).toString().padStart(4, "0");
 export function pinLookup(org: string, pin: string) {
   return createHmac("sha256", process.env.TIME_CLOCK_PIN_PEPPER!)
     .update(`${org.toLowerCase()}:${pin}`)

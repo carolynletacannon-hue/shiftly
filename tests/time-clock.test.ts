@@ -13,11 +13,11 @@ test("PINs use salted scrypt, timing safe verification and scoped keyed lookup",
   process.env.TIME_CLOCK_PIN_PEPPER =
     "synthetic-test-pepper-at-least-32-characters";
   const pin = newPin();
-  assert.match(pin, /^\d{6}$/);
+  assert.match(pin, /^\d{4}$/);
   const hash = hashPin(pin);
   assert.notEqual(hash, hashPin(pin));
   assert.ok(verifyPin(pin, hash));
-  assert.ok(!verifyPin(pin === "000000" ? "000001" : "000000", hash));
+  assert.ok(!verifyPin(pin === "0000" ? "0001" : "0000", hash));
   assert.ok(!verifyPin(pin, "invalid"));
   assert.notEqual(pinLookup("alpha", pin), pinLookup("beta", pin));
   assert.equal(digest(token()).length, 64);

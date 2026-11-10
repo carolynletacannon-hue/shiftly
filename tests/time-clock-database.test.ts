@@ -100,7 +100,7 @@ test("time clock database: roles, enrollment, PIN lockout, punches, idempotency,
       token_hash: digest("device"),
     });
     assert.ok(k.id);
-    const pinHash = hashPin("123456");
+    const pinHash = hashPin("1234");
     await manage("pin", {
       employee_id: employee,
       lookup_hash: digest("lookup"),
