@@ -343,9 +343,10 @@ export default async function Page({
           ))}
           <h2>Employee PIN management</h2>
           <p>
-            Generate a unique six-digit PIN for each eligible employee and share
-            it privately. A new PIN replaces the old PIN. PINs are revealed
-            once, never emailed.
+            Generate a unique four-digit PIN for each eligible employee and
+            share it privately. A new PIN replaces the old PIN. PINs are
+            revealed once, never emailed. Replace any previously issued
+            six-digit PINs by generating new PINs here.
           </p>
           {roster
             .filter((e) => !e.archived_at)

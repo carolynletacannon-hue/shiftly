@@ -31,7 +31,7 @@ try {
       };
     else if (body.command === "pin")
       data =
-        body.pin === "123456"
+        body.pin === "1234"
           ? { name: "Example", status: state, challenge }
           : {
               error: "PIN unavailable. Wait and try again or ask your manager",
@@ -68,12 +68,25 @@ try {
   await page.getByRole("button", { name: "1", exact: true }).click();
   assert.equal(await page.locator("#kiosk-pin").inputValue(), "1");
   await page.getByRole("button", { name: "Clear", exact: true }).click();
+  const continueButton = page.getByRole("button", {
+    name: "Continue",
+    exact: true,
+  });
+  await page.getByLabel("Employee PIN").fill("123");
+  assert.ok(await continueButton.isDisabled());
+  await page.getByLabel("Employee PIN").fill("0123");
+  assert.ok(await continueButton.isEnabled());
+  await page.getByRole("button", { name: "9", exact: true }).click();
+  assert.equal(await page.getByLabel("Employee PIN").inputValue(), "0123");
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  assert.ok(await continueButton.isDisabled());
+  await page.getByRole("button", { name: "Clear", exact: true }).click();
   const enter = async () => {
-    await page.getByLabel("Employee PIN").fill("123456");
+    await page.getByLabel("Employee PIN").fill("1234");
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page.getByRole("heading", { name: "Hello, Example" }).waitFor();
   };
-  await page.getByLabel("Employee PIN").fill("999999");
+  await page.getByLabel("Employee PIN").fill("9999");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page
     .getByText("PIN unavailable. Wait and try again or ask your manager", {
@@ -119,7 +132,7 @@ try {
   await enter();
   await page.clock.fastForward(31000);
   await page
-    .getByRole("heading", { name: "Enter your six-digit PIN" })
+    .getByRole("heading", { name: "Enter your four-digit PIN" })
     .waitFor();
   assert.equal(
     await page.getByRole("heading", { name: "Hello, Example" }).count(),

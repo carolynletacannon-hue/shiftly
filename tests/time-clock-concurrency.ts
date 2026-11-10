@@ -68,7 +68,7 @@ test("native PostgreSQL: concurrent punches, lost responses, correction races an
         [org],
       )
     ).rows[0].id;
-    const pin = hashPin("123456");
+    const pin = hashPin("1234");
     await manage(a, "pin", {
       employee_id: employee,
       lookup_hash: digest("lookup"),

@@ -76,9 +76,9 @@ export async function POST(req: NextRequest) {
     let result;
     let rotated: string | undefined;
     if (body.command === "pin") {
-      if (typeof body.pin !== "string" || !/^\d{6}$/.test(body.pin))
+      if (typeof body.pin !== "string" || !/^\d{4}$/.test(body.pin))
         return NextResponse.json(
-          { error: "Enter your six-digit PIN" },
+          { error: "Enter your four-digit PIN" },
           { status: 400, headers },
         );
       const info = await call("info");

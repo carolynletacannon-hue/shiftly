@@ -245,7 +245,7 @@ export function Kiosk() {
           </>
         ) : (
           <>
-            <h2>Enter your six-digit PIN</h2>
+            <h2>Enter your four-digit PIN</h2>
             <p>Clock in, clock out, or record an unpaid break.</p>
             <form
               onSubmit={(e) => {
@@ -262,11 +262,11 @@ export function Kiosk() {
                 type="password"
                 inputMode="numeric"
                 autoComplete="off"
-                maxLength={6}
+                maxLength={4}
                 value={pin}
                 disabled={busy || !info}
                 onChange={(e) => {
-                  setPin(e.target.value.replace(/\D/g, "").slice(0, 6));
+                  setPin(e.target.value.replace(/\D/g, "").slice(0, 4));
                   activity.current = performance.now();
                 }}
               />
@@ -295,7 +295,7 @@ export function Kiosk() {
                           ? ""
                           : key === "Delete"
                             ? p.slice(0, -1)
-                            : (p + key).slice(0, 6),
+                            : (p + key).slice(0, 4),
                       );
                       activity.current = performance.now();
                     }}
@@ -306,7 +306,7 @@ export function Kiosk() {
               </div>
               <button
                 className="button primary kiosk-continue"
-                disabled={busy || pin.length !== 6}
+                disabled={busy || pin.length !== 4}
               >
                 {" "}
                 {busy ? "Checking…" : "Continue"}
