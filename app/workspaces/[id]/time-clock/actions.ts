@@ -51,6 +51,14 @@ export async function clockAction(_: Result, form: FormData): Promise<Result> {
     } else if (command === "revoke") payload = { kiosk_id: field("kiosk_id") };
     else if (command === "request")
       payload = { session_id: field("session_id"), reason: field("reason") };
+    else if (command === "bulk_approve")
+      payload = {
+        from: field("from"),
+        to: field("to"),
+        employee_id: field("employee_id"),
+        token: field("token"),
+        confirmed: form.get("confirmed") === "on",
+      };
     else if (command === "approve" || command === "void")
       payload = {
         session_id: field("session_id"),
@@ -137,10 +145,17 @@ export async function clockAction(_: Result, form: FormData): Promise<Result> {
     return { activated: true };
   }
   revalidatePath(`/workspaces/${org}/time-clock`);
+  revalidatePath(`/workspaces/${org}/payroll`);
   return {
     message: revealed
       ? "Store this PIN securely. It will disappear in 30 seconds and cannot be retrieved."
-      : "Saved.",
+      : command === "approve"
+        ? "Timecard approved."
+        : command === "bulk_approve"
+          ? "Eligible timecards approved."
+          : command === "void"
+            ? "Timecard voided."
+            : "Saved.",
     ...(revealed ? { pin: revealed } : {}),
   };
 }

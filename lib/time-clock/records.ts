@@ -9,6 +9,7 @@ export type Timecard = {
   clock_out: string | null;
   revision: number;
   approved_at: string | null;
+  approval_source?: "automatic" | "manager" | null;
   voided_at: string | null;
   created_at: string;
   time_breaks: Break[];

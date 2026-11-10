@@ -1,4 +1,5 @@
 "use client";
+import { clockButtonLabel } from "@/lib/time-clock/approval-labels";
 import { useActionState, useEffect, useState } from "react";
 import { clockAction, type Result } from "./actions";
 export function ClockForm({
@@ -27,13 +28,7 @@ export function ClockForm({
       <input type="hidden" name="command" value={command} />
       {children}
       <button className="button secondary" disabled={pending}>
-        {pending
-          ? "Saving…"
-          : command === "enroll"
-            ? "Activate kiosk & sign out"
-            : command === "pin"
-              ? "Generate new PIN"
-              : "Save"}
+        {clockButtonLabel(command, pending)}
       </button>
       {state.error && <p role="alert">{state.error}</p>}
       {state.message && <p role="status">{state.message}</p>}
