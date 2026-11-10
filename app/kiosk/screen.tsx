@@ -156,8 +156,8 @@ export function Kiosk() {
     setBusy(true);
     try {
       const data = await call({ command: "end" });
-      if (data.error && !unauthorized) {
-        setMessage(data.error);
+      if (data.error || !data.ok) {
+        setMessage(data.error || "Unable to clear kiosk mode. Please retry.");
         return;
       }
       reset();

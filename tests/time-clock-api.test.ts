@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { NextRequest } from "next/server";
+import { proxy } from "../proxy";
 import { POST } from "../app/api/kiosk/route";
 import {
   digest,
@@ -22,6 +23,8 @@ test("kiosk API: origin/cookie/flag gates, private PIN verification, rotation an
     secret = token();
   const hash = hashPin("0123");
   let unknown = false;
+  let credentialError = false;
+  let serviceFailure = false;
   const server = createServer(async (req, res) => {
     assert.equal(req.url, "/rest/v1/rpc/time_clock_kiosk");
     assert.equal(req.headers.authorization, "Bearer synthetic-service-key");
@@ -30,7 +33,7 @@ test("kiosk API: origin/cookie/flag gates, private PIN verification, rotation an
     assert.ok(!raw.includes('"pin":"'));
     const body = JSON.parse(raw);
     seen.push(body);
-    const data =
+    const data = credentialError ? { error: "Kiosk authorization required" } :
       body.command === "info"
         ? {
             org,
@@ -45,7 +48,7 @@ test("kiosk API: origin/cookie/flag gates, private PIN verification, rotation an
           : body.command === "authorize"
             ? { name: "Example", status: "out" }
             : { ok: true };
-    res.writeHead(200, { "Content-Type": "application/json" });
+    res.writeHead(serviceFailure ? 503 : 200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(data));
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -141,6 +144,56 @@ test("kiosk API: origin/cookie/flag gates, private PIN verification, rotation an
         cookie.includes("SameSite=strict"),
     );
     assert.notEqual(seen.at(-1)?.payload.token_hash, digest(secret));
+    // Unknown, expired and revoked credentials all return the same narrow DB error.
+    credentialError = true;
+    for (const state of ["unknown", "expired", "revoked"]) {
+      const ended = await call({ command: "end" });
+      assert.deepEqual(await ended.json(), { ok: true }, state);
+      assert.equal(ended.cookies.get(kioskCookie)?.maxAge, 0);
+    }
+    credentialError = false;
+    serviceFailure = true;
+    const unavailableExit = await call({ command: "end" });
+    assert.deepEqual(await unavailableExit.json(), { ok: true });
+    assert.equal(unavailableExit.cookies.get(kioskCookie)?.maxAge, 0);
+    serviceFailure = false;
+    for (const secret of ["", "malformed"]) {
+      const ended = await call({ command: "end" }, secret);
+      assert.equal(ended.cookies.get(kioskCookie)?.maxAge, 0);
+    }
+    const mismatch = await call({ command: "end" }, secret, "https://evil.vercel.app");
+    assert.equal(mismatch.status, 403);
+    assert.equal(mismatch.headers.get("set-cookie"), null);
+    for (const origin of ["", "null"]) {
+      assert.equal((await call({ command: "end" }, secret, origin)).status, 403);
+    }
+    const crossSite = await POST(new NextRequest("https://clock.example.test/api/kiosk", {
+      method: "POST",
+      headers: { origin: "https://clock.example.test", "sec-fetch-site": "cross-site" },
+      body: JSON.stringify({ command: "end" }),
+    }));
+    assert.equal(crossSite.status, 403);
+    const deployment = "https://synthetic-deployment.vercel.app";
+    const request = (path: string, cookie = "") => new NextRequest(deployment + path, {
+      headers: cookie ? { cookie } : {},
+    });
+    assert.equal((await proxy(request("/login", `${kioskCookie}=${secret}`))).headers.get("location"), deployment + "/kiosk");
+    process.env.TIME_CLOCK_ENABLED = "false";
+    const exit = await POST(new NextRequest(deployment + "/api/kiosk", {
+      method: "POST",
+      headers: { origin: deployment, cookie: `${kioskCookie}=${secret}; sb-synthetic-auth-token.0=old-manager-session` },
+      body: JSON.stringify({ command: "end" }),
+    }));
+    assert.deepEqual(await exit.json(), { ok: true });
+    assert.equal(exit.cookies.get(kioskCookie)?.maxAge, 0);
+    assert.equal(exit.cookies.get("sb-synthetic-auth-token.0")?.maxAge, 0);
+    // Apply the cookie deletion as the browser does, then follow login twice.
+    const publicKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    delete process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    for (let i = 0; i < 2; i++)
+      assert.equal((await proxy(request("/login"))).headers.get("location"), null);
+    if (publicKey) process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = publicKey;
+    process.env.TIME_CLOCK_ENABLED = "true";
     const ended = await call({ command: "end" });
     assert.match(ended.headers.get("set-cookie") || "", /Max-Age=0/);
     assert.equal(
