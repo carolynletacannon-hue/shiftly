@@ -5,10 +5,14 @@ import { Brand } from "./brand";
 import Link from "next/link";
 import { logout } from "./auth/actions";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 export function TopNavigation({
   workspace,
+  timeClock = false,
+  payroll = false,
 }: {
+  timeClock?: boolean;
+  payroll?: boolean;
   workspace?: { id: string; role: string; name?: string };
 }) {
   const pathname = usePathname();
@@ -41,13 +45,71 @@ export function TopNavigation({
     };
   }, [workspace?.id, pathname]);
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
+  const headerRef = useRef<HTMLElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const header = headerRef.current!;
+    const nav = header.querySelector<HTMLElement>("nav")!;
+    function measure() {
+      const style = getComputedStyle(header);
+      const gap = parseFloat(style.columnGap);
+      const controls = Array.from(header.children).filter(
+        (child) => child !== nav && child !== menuRef.current,
+      );
+      const links = Array.from(nav.children);
+      const required =
+        controls.reduce(
+          (sum, child) => sum + child.getBoundingClientRect().width,
+          0,
+        ) +
+        links.reduce(
+          (sum, child) => sum + child.getBoundingClientRect().width,
+          0,
+        ) +
+        Math.max(0, links.length - 1) *
+          parseFloat(getComputedStyle(nav).columnGap) +
+        controls.length * gap;
+      const available =
+        header.clientWidth -
+        parseFloat(style.paddingLeft) -
+        parseFloat(style.paddingRight);
+      setCollapsed(required > available);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    for (const child of header.querySelectorAll(
+      ".brand, .product-switcher, nav a, .workspace-menu, .notifications-link",
+    ))
+      observer.observe(child);
+    return () => observer.disconnect();
+  }, [workspace?.id, workspace?.role, workspace?.name, timeClock, payroll]);
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname, collapsed]);
+  useEffect(() => {
+    if (!open) return;
+    function outside(event: PointerEvent) {
+      if (!(event.target instanceof Node)) return;
+      if (
+        !headerRef.current?.querySelector("nav")?.contains(event.target) &&
+        !menuRef.current?.contains(event.target)
+      )
+        setOpen(false);
+    }
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [open]);
   useEffect(() => {
     function escape(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape" && open) {
+        setOpen(false);
+        menuRef.current?.focus();
+      }
     }
     window.addEventListener("keydown", escape);
     return () => window.removeEventListener("keydown", escape);
-  }, []);
+  }, [open]);
   const base = workspace ? `/workspaces/${workspace.id}` : "";
   const admin = workspace && ["owner", "manager"].includes(workspace.role);
   const links = workspace
@@ -61,6 +123,22 @@ export function TopNavigation({
           ? [
               { href: `${base}/employees`, label: "Employees" },
               { href: `${base}/weekly-setup`, label: "Weekly setup" },
+            ]
+          : []),
+        ...(timeClock
+          ? [
+              {
+                href: `${base}/time-clock`,
+                label: admin ? "Time Clock" : "My Timesheet",
+              },
+            ]
+          : []),
+        ...(payroll
+          ? [
+              {
+                href: `${base}/payroll`,
+                label: admin ? "Payroll" : "My Pay Estimates",
+              },
             ]
           : []),
         { href: `${base}/time-off`, label: "Time Off" },
@@ -77,7 +155,10 @@ export function TopNavigation({
         { href: "/demo", label: "Explore demo" },
       ];
   return (
-    <header className="app-header">
+    <header
+      ref={headerRef}
+      className={`app-header${collapsed ? " navigation-collapsed" : ""}`}
+    >
       <Link
         className="brand"
         href={workspace ? `${base}` : "/workspaces"}
@@ -85,19 +166,38 @@ export function TopNavigation({
       >
         <Brand />
       </Link>
-      <ProductSwitcher organizationId={workspace?.id} />
+      <ProductSwitcher
+        organizationId={workspace?.id}
+        onOpen={() => {
+          setOpen(false);
+          const account =
+            headerRef.current?.querySelector<HTMLDetailsElement>(
+              ".workspace-menu",
+            );
+          if (account) account.open = false;
+        }}
+      />
       <button
+        ref={menuRef}
         className="mobile-menu button secondary"
         type="button"
-        aria-expanded={open}
+        aria-expanded={collapsed && open}
         aria-controls="app-navigation"
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          headerRef.current?.querySelectorAll("details").forEach((account) => {
+            account.open = false;
+          });
+          setOpen(!open);
+        }}
       >
         Menu <span aria-hidden="true">☰</span>
       </button>
       <nav
         id="app-navigation"
-        className={open ? "app-navigation is-open" : "app-navigation"}
+        className={
+          collapsed && open ? "app-navigation is-open" : "app-navigation"
+        }
+        inert={collapsed && !open}
         aria-label="Main navigation"
       >
         {links.map((link) => (
@@ -118,7 +218,19 @@ export function TopNavigation({
         ))}
       </nav>
       {workspace && <NotificationBell base={base} unread={unread} />}
-      <details className="workspace-menu">
+      <details
+        className="workspace-menu"
+        onToggle={(event) => {
+          if (event.currentTarget.open) {
+            setOpen(false);
+            const product =
+              headerRef.current?.querySelector<HTMLDetailsElement>(
+                ".product-switcher",
+              );
+            if (product) product.open = false;
+          }
+        }}
+      >
         <summary aria-label="Account and workspace menu">
           <span className="account-avatar" aria-hidden="true">
             {workspace?.name?.slice(0, 1) || "M"}

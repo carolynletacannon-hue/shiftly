@@ -1077,3 +1077,48 @@ input::placeholder, textarea::placeholder { color: var(--text-secondary); }
 .calendar-platforms details { padding: .85rem; border: 1px solid var(--border); border-radius: 9px; }
 .calendar-platforms summary { cursor: pointer; font-weight: 600; color: var(--accent); }
 @media (max-width: 480px) { .calendar-actions > .button { flex: 1 1 100%; } }
+
+/* Collapse according to the links and controls' measured intrinsic widths. */
+.app-header > .brand,
+.app-header > .notifications-link { flex-shrink: 0; }
+.app-header .mobile-menu { display: none; }
+.app-header .app-navigation {
+  display: flex;
+  position: static;
+  width: auto;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  gap: 5px;
+  visibility: visible;
+}
+.app-header .app-navigation a {
+  width: max-content;
+  flex-shrink: 0;
+  min-height: 44px;
+}
+.navigation-collapsed .mobile-menu { display: flex; margin-left: auto; gap: 8px; }
+.navigation-collapsed .workspace-menu { margin-left: 0; }
+.navigation-collapsed .app-navigation {
+  position: absolute;
+  top: 100%;
+  left: 12px;
+  right: auto;
+  width: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+.navigation-collapsed .app-navigation.is-open {
+  display: grid;
+  right: 12px;
+  width: auto;
+  visibility: visible;
+  padding: 10px;
+  max-height: calc(100dvh - 90px);
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgb(32 44 38 / 12%);
+}

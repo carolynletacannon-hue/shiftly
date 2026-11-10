@@ -147,10 +147,18 @@ cookies remain appropriate even on sibling subdomains.
 
 No migration is required before merging or deploying Phase 12. No database SQL,
 auth changes, new Data API exposure or cross-app SSO are installed here. Payroll,
-kiosk and time-clock business logic are untouched. This checkout has scheduling,
-calendar, requests and employee features; it does not contain payroll, kiosk or
-time-clock approval implementations to validate. Future implementations must
-retain those boundaries rather than infer access from registry visibility.
+kiosk and time-clock business logic are untouched. Payroll uses its existing
+feature gate, live membership validation and scoped `payroll_input` RPC; wage
+records and report exports remain outside the shared directory contract. The
+time-clock manager actions retain their role checks and guarded approval rules.
+Kiosk mode uses the separate restricted `/kiosk` shell: `proxy.ts` redirects
+kiosk-cookie browsers away from account/Workforce pages before normal session
+handling. The kiosk API continues to verify device credentials and employee
+challenges server-side; neither a kiosk credential nor an employee PIN is a
+Meadowmark account identity. The product switcher is only in the normal account
+header and is never added to the kiosk shell. Existing navigation continues to
+use measured available space, including the new product control, with existing
+feature-gated Payroll and Time Clock links intact.
 
 Supabase documentation fetch was denied by this environment's outbound policy;
 no new Supabase feature or SDK API is introduced based on unverified guidance.
@@ -168,8 +176,11 @@ accepting arbitrary request URLs. UI availability alone must never enable access
 ## Deployment and rollback
 
 1. Run `npm install`, `npm test`, `npm run test:postgres`, `npm run typecheck`,
-   `npm run build` and `node tests/browser/launch-smoke.cjs` (browser tooling is
-   installed separately under `work/browser-tools`). Review fixture-only browser
+   `npm run build`, `node tests/browser/launch-smoke.cjs`,
+   `node tests/browser/navigation-smoke.cjs` and `npm run test:payroll:browser`
+   (the latter also runs the kiosk/time-clock browser regression). Browser axe
+   tooling is installed separately under `work/browser-tools`. Run browser suites
+   sequentially when they share a local port. Review fixture-only browser
    coverage and any unavailable real-service tests.
 2. Review the PR and deploy to a staging/preview environment through the normal
    explicit release process. Verify account selection, invitations, workplace
@@ -185,16 +196,19 @@ accepting arbitrary request URLs. UI availability alone must never enable access
 ## Phase 12 verification
 
 - `npm install` completed using a workspace-local npm cache.
-- `npm test`: 128 passing tests across both runners, including registry/switcher,
-  scheduling, employee lifecycle, invitations, requests and organization isolation.
-- `npm run test:postgres`: 13 passing tests on a disposable native PostgreSQL 18
-  cluster, including concurrent sessions. Only local synthetic data was used.
+- `npm test`: 150 passing tests, including registry/switcher, scheduling,
+  employee lifecycle, invitations, requests, payroll privacy, kiosk restrictions,
+  timecard approval and organization isolation.
+- `npm run test:postgres`: 17 passing tests on a disposable native PostgreSQL 18
+  cluster, including concurrent sessions. Only local synthetic data is used.
 - `npm run typecheck` and production `npm run build` passed. Build uses
   `NEXT_TELEMETRY_DISABLED=1 XDG_CONFIG_HOME=/workspace/.config` for this sandbox.
 - Browser tests use a local HTTP Supabase fixture, not a live hosted project.
   They exercise two roles, multiple workplaces, membership-scoped selection,
   existing action redirects, foreign-organization denial, informational product
   states, responsive layout, keyboard dismissal and WCAG A/AA axe checks.
-- The pre-existing copy-week test dates were advanced from 2026 to the matching
-  2054 weekday/DST calendar so pending requests still exercise upcoming shifts.
-  A dashboard link underline fixes an accessibility issue exposed by the audit.
+- Current main's copy-week fixture fix is preserved. A dashboard link underline
+  fixes an accessibility issue exposed by the audit.
+- Additional browser suites cover responsive measured navigation, payroll reports,
+  employee export denial, kiosk isolation, PIN flow and timecard approvals. All
+  browser fixtures are synthetic; database suites enforce actual SQL permissions.

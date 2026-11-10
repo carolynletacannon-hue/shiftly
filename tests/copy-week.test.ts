@@ -1,12 +1,16 @@
+import { addDays, weekStart } from "../lib/scheduling/time";
 import type { CopyPreview } from "../lib/scheduling/copy-types";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { migrationDatabase } from "./support/migration-database";
 
-// 2054 preserves the 2026 weekday/DST calendar while keeping request fixtures upcoming.
 test("copy week: atomic preview, replacement, merge, conflict checks and tenant isolation", async () => {
   const db = await migrationDatabase();
+  // Shift requests require future work; keep DST fixtures fixed and this workflow future-dated.
+  const structureWeek = weekStart(
+    addDays(new Date().toISOString().slice(0, 10), 370),
+  );
   try {
     await db.exec(`create role anon;create role authenticated;create schema auth;
  create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz,raw_user_meta_data jsonb default '{}');
@@ -58,8 +62,8 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
         )
       ).rows;
     const copy = async (
-      source = "2054-10-25",
-      dest = "2054-11-01",
+      source = "2026-10-25",
+      dest = "2026-11-01",
       mode = "all",
       strategy = "merge",
       token: string | null = null,
@@ -75,15 +79,15 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
         ])
       ).r;
     const commit = async (
-      source = "2054-10-25",
-      dest = "2054-11-01",
+      source = "2026-10-25",
+      dest = "2026-11-01",
       mode = "all",
       strategy = "merge",
     ) => {
       const p = await copy(source, dest, mode, strategy);
       return copy(source, dest, mode, strategy, p.token);
     };
-    const src = await cmd("create", { week_start: "2054-10-25" });
+    const src = await cmd("create", { week_start: "2026-10-25" });
     const employees = [];
     for (const name of ["Example One", "Example Two"])
       employees.push(
@@ -100,8 +104,8 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
         schedule_id: src.id,
         employee_id: employees[0],
         label: "Shared night",
-        starts_at: "2054-10-25T06:00:00Z",
-        ends_at: "2054-10-25T14:00:00Z",
+        starts_at: "2026-10-25T06:00:00Z",
+        ends_at: "2026-10-25T14:00:00Z",
         notes: "Front desk",
         required_count: 2,
         allow_overstaffing: false,
@@ -131,10 +135,10 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
       1,
       "preview leaves no draft",
     );
-    await copy("2054-10-25", "2054-11-01", "all", "merge", p.token);
+    await copy("2026-10-25", "2026-11-01", "all", "merge", p.token);
     const dst = await row(
       "select * from public.schedules where organization_id=$1 and week_start=$2",
-      [org, "2054-11-01"],
+      [org, "2026-11-01"],
     );
     assert.equal((await shifts(dst.id)).length, 2);
     assert.equal(
@@ -162,19 +166,19 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
       2,
       "repeated merge creates no duplicates",
     );
-    await commit("2054-10-25", "2054-11-08", "structure");
+    await commit("2026-10-25", structureWeek, "structure");
     const structure = await row(
       "select * from public.schedules where organization_id=$1 and week_start=$2",
-      [org, "2054-11-08"],
+      [org, structureWeek],
     );
     assert.equal((await shifts(structure.id)).length, 2);
     assert.ok((await shifts(structure.id)).every((s) => !s.employee_id));
-    await commit("2054-10-25", "2054-11-08", "assignments");
+    await commit("2026-10-25", structureWeek, "assignments");
     assert.deepEqual(
       new Set((await shifts(structure.id)).map((s) => s.employee_id)),
       new Set(employees),
     );
-    await commit("2054-10-25", "2054-11-08", "assignments");
+    await commit("2026-10-25", structureWeek, "assignments");
     assert.equal((await shifts(structure.id)).length, 2);
     const stale = await copy();
     await cmd(
@@ -187,12 +191,12 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
       await rev(dst.id),
     );
     await assert.rejects(
-      copy("2054-10-25", "2054-11-01", "all", "merge", stale.token),
+      copy("2026-10-25", "2026-11-01", "all", "merge", stale.token),
       /Stale revision/,
     );
     const replaced = await copy(
-      "2054-10-25",
-      "2054-11-01",
+      "2026-10-25",
+      "2026-11-01",
       "structure",
       "replace",
     );
@@ -202,8 +206,8 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
       "replace preview does not clear assignments",
     );
     await copy(
-      "2054-10-25",
-      "2054-11-01",
+      "2026-10-25",
+      "2026-11-01",
       "structure",
       "replace",
       replaced.token,
@@ -225,10 +229,10 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
       [org, employees[0]],
     );
     await db.exec("set role authenticated");
-    const archived = await copy("2054-10-25", "2054-11-15");
+    const archived = await copy("2026-10-25", "2026-11-15");
     assert.equal(archived.skipped, 1);
     assert.equal(archived.assigned, 1);
-    await commit("2054-10-25", "2054-11-15");
+    await commit("2026-10-25", "2026-11-15");
     await db.exec("reset role");
     await db.query(
       "update public.employees set archived_at=null where organization_id=$1",
@@ -238,15 +242,15 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
     // Hard time off fails before creating any destination rows.
     await db.exec("reset role");
     const constraint = await row(
-      "insert into public.time_off_requests(organization_id,employee_id,start_date,end_date,full_day,timezone,starts_at,ends_at,status,created_by) values($1,$2,'2054-11-22','2054-11-22',true,'America/Denver','2054-11-22T07:00Z','2054-11-23T07:00Z','approved',$3) returning id",
+      "insert into public.time_off_requests(organization_id,employee_id,start_date,end_date,full_day,timezone,starts_at,ends_at,status,created_by) values($1,$2,'2026-11-22','2026-11-22',true,'America/Denver','2026-11-22T07:00Z','2026-11-23T07:00Z','approved',$3) returning id",
       [org, employees[0], user],
     );
     await db.exec("set role authenticated");
-    await assert.rejects(copy("2054-10-25", "2054-11-22"), /Approved time off/);
+    await assert.rejects(copy("2026-10-25", "2026-11-22"), /Approved time off/);
     assert.equal(
       (
         await row(
-          "select count(*)::int n from public.schedules where week_start='2054-11-22'",
+          "select count(*)::int n from public.schedules where week_start='2026-11-22'",
         )
       ).n,
       0,
@@ -261,7 +265,7 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
       [org, employees[0]],
     );
     await db.exec("set role authenticated");
-    const warning = await copy("2054-10-25", "2054-11-22");
+    const warning = await copy("2026-10-25", "2026-11-22");
     assert.equal(warning.availability.length, 1);
     await db.exec("reset role");
     await db.query(
@@ -270,7 +274,7 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
     );
     await db.exec("set role authenticated");
     await assert.rejects(
-      copy("2054-10-25", "2054-11-22", "all", "merge", warning.token),
+      copy("2026-10-25", "2026-11-22", "all", "merge", warning.token),
       /Stale revision/,
     );
     await db.exec("reset role");
@@ -313,7 +317,7 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
         [org],
       )
     ).n;
-    await copy("2054-10-25", "2054-11-08", "structure", "replace");
+    await copy("2026-10-25", structureWeek, "structure", "replace");
     assert.equal(
       (
         await row(
@@ -324,7 +328,7 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
       auditsBefore,
       "preview rolls back deferred assignment audits",
     );
-    await commit("2054-10-25", "2054-11-08", "structure", "replace");
+    await commit("2026-10-25", structureWeek, "structure", "replace");
     assert.deepEqual(
       (
         await db.query(
@@ -353,69 +357,69 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
       publications,
     );
     // Transaction rollback retains a nonempty draft if copied assignments conflict.
-    const blocker = await cmd("create", { week_start: "2054-11-29" });
+    const blocker = await cmd("create", { week_start: "2026-11-29" });
     await cmd(
       "slot_save",
       {
         schedule_id: blocker.id,
         employee_id: employees[0],
         label: "Existing work",
-        starts_at: "2054-11-29T08:00Z",
-        ends_at: "2054-11-29T12:00Z",
+        starts_at: "2026-11-29T08:00Z",
+        ends_at: "2026-11-29T12:00Z",
         notes: "",
       },
       await rev(blocker.id),
     );
     const blockerBefore = await shifts(blocker.id),
       blockerRev = await rev(blocker.id);
-    await assert.rejects(copy("2054-10-25", "2054-11-29"), /overlapping/);
+    await assert.rejects(copy("2026-10-25", "2026-11-29"), /overlapping/);
     assert.deepEqual(await shifts(blocker.id), blockerBefore);
     assert.equal(await rev(blocker.id), blockerRev);
     // Overnight and nonexistent/repeated DST hours.
-    const night = await cmd("create", { week_start: "2054-02-22" });
+    const night = await cmd("create", { week_start: "2026-02-22" });
     await cmd(
       "slot_save",
       {
         schedule_id: night.id,
         label: "Overnight",
-        starts_at: "2054-02-23T06:00Z",
-        ends_at: "2054-02-23T14:00Z",
+        starts_at: "2026-02-23T06:00Z",
+        ends_at: "2026-02-23T14:00Z",
         notes: "",
       },
       await rev(night.id),
     );
-    const overnight = await copy("2054-02-22", "2054-03-08", "structure");
+    const overnight = await copy("2026-02-22", "2026-03-08", "structure");
     assert.equal(overnight.shifts.length, 1);
-    const dstGap = await cmd("create", { week_start: "2054-03-01" });
+    const dstGap = await cmd("create", { week_start: "2026-03-01" });
     await cmd(
       "slot_save",
       {
         schedule_id: dstGap.id,
         label: "DST gap",
-        starts_at: "2054-03-01T09:30Z",
-        ends_at: "2054-03-01T10:30Z",
+        starts_at: "2026-03-01T09:30Z",
+        ends_at: "2026-03-01T10:30Z",
         notes: "",
       },
       await rev(dstGap.id),
     );
-    await assert.rejects(copy("2054-03-01", "2054-03-08"), /skipped daylight/);
-    const repeat = await cmd("create", { week_start: "2054-10-18" });
+    await assert.rejects(copy("2026-03-01", "2026-03-08"), /skipped daylight/);
+    const repeat = await cmd("create", { week_start: "2026-10-18" });
     await cmd(
       "slot_save",
       {
         schedule_id: repeat.id,
         label: "Repeated hour",
-        starts_at: "2054-10-18T07:30Z",
-        ends_at: "2054-10-18T09:00Z",
+        starts_at: "2026-10-18T07:30Z",
+        ends_at: "2026-10-18T09:00Z",
         notes: "",
       },
       await rev(repeat.id),
     );
-    await assert.rejects(copy("2054-10-18", "2054-11-01"), /repeated daylight/);
-    await assert.rejects(copy("2054-10-25", "2054-10-25"), /different weeks/);
-    await assert.rejects(copy("2054-10-25", "2054-11-02"), /whole calendar/);
+    await assert.rejects(copy("2026-10-18", "2026-11-01"), /repeated daylight/);
+    await assert.rejects(copy("2026-10-25", "2026-10-25"), /different weeks/);
+    await assert.rejects(copy("2026-10-25", "2026-11-02"), /whole calendar/);
     await assert.rejects(
-      copy("2054-10-25", "2054-12-06", "assignments"),
+      copy("2026-10-25", "2026-12-06", "assignments"),
       /create destination shifts/,
     );
     // Recurring staffing slots keep their requirement identity, counts, notes and settings.
@@ -432,7 +436,7 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
       ]),
       0,
     ]);
-    const recurring = await cmd("create", { week_start: "2054-12-13" });
+    const recurring = await cmd("create", { week_start: "2026-12-13" });
     const recurringBefore = await shifts(recurring.id);
     assert.equal(recurringBefore.length, 2);
     await db.exec("reset role");
@@ -441,15 +445,15 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
       [recurring.id],
     );
     await db.exec("set role authenticated");
-    const required = await copy("2054-12-13", "2054-12-20", "structure");
+    const required = await copy("2026-12-13", "2026-12-20", "structure");
     assert.equal(required.shifts.length, 2);
     for (const slot of required.shifts) {
       assert.ok(slot.is_required);
       assert.equal(slot.requirement_id, recurringBefore[0].requirement_id);
     }
     const concurrent = await Promise.allSettled([
-      copy("2054-12-13", "2054-12-20", "structure", "merge", required.token),
-      copy("2054-12-13", "2054-12-20", "structure", "merge", required.token),
+      copy("2026-12-13", "2026-12-20", "structure", "merge", required.token),
+      copy("2026-12-13", "2026-12-20", "structure", "merge", required.token),
     ]);
     assert.equal(
       concurrent.filter((r) => r.status === "fulfilled").length,
@@ -457,7 +461,7 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
       "one confirmation wins its revision check",
     );
     const requiredDst = await row(
-      "select * from public.schedules where organization_id=$1 and week_start='2054-12-20'",
+      "select * from public.schedules where organization_id=$1 and week_start='2026-12-20'",
       [org],
     );
     assert.ok(
@@ -468,7 +472,7 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
         )
       ).rows.every((g) => g.allow_overstaffing === false),
     );
-    await commit("2054-12-13", "2054-12-20", "structure");
+    await commit("2026-12-13", "2026-12-20", "structure");
     assert.equal((await shifts(requiredDst.id)).length, 2);
     assert.deepEqual(await shifts(recurring.id), recurringBefore);
     const rules = (
@@ -477,7 +481,7 @@ test("copy week: atomic preview, replacement, merge, conflict checks and tenant 
         [org],
       )
     ).rows;
-    await commit("2054-12-13", "2054-12-27", "structure");
+    await commit("2026-12-13", "2026-12-27", "structure");
     assert.deepEqual(
       (
         await db.query(

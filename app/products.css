@@ -95,45 +95,29 @@
   margin: -8px 0 28px;
   color: #56685c;
 }
-/* Keep the established desktop navigation from crowding the product control. */
-@media (min-width: 1101px) {
-  .app-header {
-    gap: 14px;
-    padding-inline: 20px;
-  }
-  .app-navigation a {
-    padding-inline: 8px;
-  }
-  .app-header > .brand {
-    font-size: 22px;
-  }
-  .workspace-menu-label {
-    max-width: 100px;
-  }
-}
-@media (max-width: 1100px) {
-  .product-switcher {
-    margin-right: auto;
-  }
-}
 @media (max-width: 600px) {
   .app-header {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 44px auto;
     gap: 10px;
     padding-block: 12px;
   }
   .app-header > .brand {
-    flex-basis: 100%;
-    padding-right: 88px;
+    grid-column: 1 / -1;
+    justify-self: start;
   }
   .product-switcher {
-    order: 1;
+    grid-row: 2;
+    grid-column: 1;
+    justify-self: start;
   }
   .product-popover {
     left: 0;
   }
   .app-header > .mobile-menu {
-    order: 2;
+    grid-row: 2;
+    grid-column: 2;
     margin-left: auto;
   }
   .app-header > .workspace-menu {
@@ -145,7 +129,7 @@
   .app-header > .notifications-link {
     position: absolute;
     top: 12px;
-    right: 56px;
+    right: 68px;
   }
   .app-header > .app-navigation {
     order: 3;
@@ -155,33 +139,5 @@
 @media print {
   .product-switcher {
     display: none;
-  }
-}
-@media (min-width: 601px) and (max-width: 1350px) {
-  .app-header {
-    gap: 14px;
-  }
-  .workspace-menu-label {
-    display: none;
-  }
-  .mobile-menu {
-    display: flex;
-    margin-left: auto;
-    gap: 12px;
-  }
-  .app-navigation {
-    display: none;
-    position: absolute;
-    top: 100%;
-    left: 12px;
-    right: 12px;
-    padding: 10px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    box-shadow: 0 16px 30px #0003;
-  }
-  .app-navigation.is-open {
-    display: grid;
   }
 }

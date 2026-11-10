@@ -163,6 +163,7 @@ function session(id) {
       path.resolve("work/browser-tools/node_modules/axe-core/axe.min.js");
     const auditFailures = [];
     async function audit(label) {
+      await page.waitForFunction(() => document.title.trim().length > 0);
       await page.addScriptTag({ path: axePath });
       const violations = await page.evaluate(async () =>
         (

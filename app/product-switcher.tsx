@@ -37,8 +37,10 @@ export function ProductIcon({ icon }: { icon: Product["icon"] }) {
 }
 export function ProductSwitcher({
   organizationId,
+  onOpen,
 }: {
   organizationId?: string;
+  onOpen?: () => void;
 }) {
   const details = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
@@ -59,7 +61,13 @@ export function ProductSwitcher({
     };
   }, []);
   return (
-    <details className="product-switcher" ref={details}>
+    <details
+      className="product-switcher"
+      ref={details}
+      onToggle={(event) => {
+        if (event.currentTarget.open) onOpen?.();
+      }}
+    >
       <summary aria-label="Meadowmark products">
         <ProductIcon icon="calendar" />
         <span>Workforce</span>

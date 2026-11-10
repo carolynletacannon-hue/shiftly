@@ -3,3 +3,7 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}.ac
 
 .notifications-link { position: relative; display: inline-flex; align-items: center; gap: .25rem; }
 .notification-count { background: #355f4b; color: white; border-radius: 1rem; padding: .1rem .4rem; font-size: .75rem; line-height: 1.4; }
+
+.payroll-form { display: grid; gap: 1rem; margin-block: 1.5rem; max-width: 42rem; }
+.payroll-form label { display: grid; gap: .4rem; }
+.payroll-form input, .payroll-form select { max-width: 100%; min-height: 2.75rem; }
