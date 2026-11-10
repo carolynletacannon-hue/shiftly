@@ -17,21 +17,56 @@ const headers = {
   "X-Frame-Options": "DENY",
 };
 export async function POST(req: NextRequest) {
-  if (!timeClockEnabled())
-    return NextResponse.json(
-      { error: "Time clock unavailable" },
-      { status: 404, headers },
-    );
-  // Canonical origin required, including behind Vercel's reverse proxy.
-  const origin = process.env.NEXT_PUBLIC_SITE_URL;
+  // Compare with this deployment, not the canonical marketing/login domain.
+  // Do not trust forwarded headers or allow arbitrary *.vercel.app origins.
   if (
-    !origin ||
-    req.headers.get("origin") !== new URL(origin).origin ||
+    req.headers.get("origin") !== req.nextUrl.origin ||
     req.headers.get("sec-fetch-site") === "cross-site"
   )
     return NextResponse.json(
       { error: "Request unavailable" },
       { status: 403, headers },
+    );
+  let ending = false;
+  if (Number(req.headers.get("content-length") || 0) <= 2048) {
+    try {
+      const raw = await req.clone().text();
+      ending = raw.length <= 2048 && JSON.parse(raw).command === "end";
+    } catch {
+      // The normal handler reports malformed requests.
+    }
+  }
+  const result = await handle(req);
+  if (!ending) return result;
+  // Local exit must work even if disabled, expired, revoked, or offline.
+  // The handler still attempts to revoke a usable credential first.
+  const response = NextResponse.json({ ok: true }, { headers });
+  response.cookies.set(kioskCookie, "", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict",
+    path: "/",
+    maxAge: 0,
+  });
+  // Never restore an authenticated manager session when leaving a shared kiosk.
+  for (const { name } of req.cookies.getAll()) {
+    if (/^sb-.+-auth-token(?:\.\d+)?$/.test(name))
+      response.cookies.set(name, "", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 0,
+      });
+  }
+  response.headers.set("Clear-Site-Data", '"cache", "storage"');
+  return response;
+}
+async function handle(req: NextRequest) {
+  if (!timeClockEnabled())
+    return NextResponse.json(
+      { error: "Time clock unavailable" },
+      { status: 404, headers },
     );
   const secret = req.cookies.get(kioskCookie)?.value || "";
   if (!validToken(secret)) {

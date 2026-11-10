@@ -152,6 +152,27 @@ try {
     path: "work/phase9-kiosk-mobile.png",
     fullPage: true,
   });
+  // Authorization errors must not navigate until local exit is confirmed.
+  await page.unroute("**/api/kiosk");
+  let allowExit = false;
+  await page.route("**/api/kiosk", async (route) => {
+    const body = route.request().postDataJSON();
+    await route.fulfill({
+      status: body.command === "end" && allowExit ? 200 : 403,
+      contentType: "application/json",
+      body: JSON.stringify(body.command === "end" && allowExit
+        ? { ok: true } : { error: "Request unavailable" }),
+    });
+  });
+  await page.goto(origin + "/kiosk");
+  await page.getByRole("heading", { name: "Manager authorization required" }).waitFor();
+  await page.getByRole("button", { name: "Clear kiosk mode & sign in" }).click();
+  await page.waitForFunction(() => !document.querySelector("button")?.disabled);
+  assert.equal(new URL(page.url()).pathname, "/kiosk");
+  allowExit = true;
+  await page.getByRole("button", { name: "Clear kiosk mode & sign in" }).click();
+  await page.waitForURL(origin + "/login");
+  await page.getByRole("heading", { name: "Welcome back" }).waitFor();
   // Actual route/middleware checks, without mocked API responses.
   const context = await browser.newContext();
   const api = context.request;
