@@ -189,6 +189,163 @@ test("native PostgreSQL: concurrent punches, lost responses, correction races an
       ).rows[0].n,
       1,
     );
+
+    // Distinct employees can punch simultaneously on independent kiosks. The
+    // organization lock serializes transitions without imposing shift order.
+    await a.query("reset role");
+    const secondUser = randomUUID();
+    await a.query(
+      "insert into auth.users(id,email,email_confirmed_at)values($1,'handoff@example.test',now())",
+      [secondUser],
+    );
+    await a.query("insert into public.memberships values($1,$2,'employee')", [
+      org,
+      secondUser,
+    ]);
+    const secondEmployee = (
+      await a.query(
+        "select id from public.employees where organization_id=$1 and user_id=$2",
+        [org, secondUser],
+      )
+    ).rows[0].id;
+    await asManager(a);
+    await asManager(b);
+    const deviceA = digest("handoff-a"),
+      deviceB = digest("handoff-b");
+    await manage(a, "enroll", { name: "Handoff A", token_hash: deviceA });
+    await manage(b, "enroll", { name: "Handoff B", token_hash: deviceB });
+    await manage(b, "pin", {
+      employee_id: secondEmployee,
+      lookup_hash: digest("second-lookup"),
+      pin_hash: pin,
+    });
+    const operate = async (
+      c: Client,
+      credential: string,
+      command: string,
+      payload: object = {},
+    ) =>
+      (
+        await c.query("select public.time_clock_kiosk($1,$2,$3) r", [
+          credential,
+          command,
+          JSON.stringify(payload),
+        ])
+      ).rows[0].r;
+    await service(a);
+    await service(b);
+    const authA = () =>
+      operate(a, deviceA, "authorize", {
+        employee_id: employee,
+        verified_hash: pin,
+        challenge_hash: digest("handoff-challenge-a"),
+      });
+    const authB = () =>
+      operate(b, deviceB, "authorize", {
+        employee_id: secondEmployee,
+        verified_hash: pin,
+        challenge_hash: digest("handoff-challenge-b"),
+      });
+    await Promise.all([authA(), authB()]);
+    const punchA = (action: string) =>
+      operate(a, deviceA, "punch", {
+        action,
+        request_id: randomUUID(),
+        challenge_hash: digest("handoff-challenge-a"),
+      });
+    const punchB = (action: string) =>
+      operate(b, deviceB, "punch", {
+        action,
+        request_id: randomUUID(),
+        challenge_hash: digest("handoff-challenge-b"),
+      });
+    const starts = await Promise.all([punchA("in"), punchB("in")]);
+    assert.ok(starts.every((r) => r.ok));
+    await authA();
+    assert.ok((await punchA("out")).ok);
+    await a.query("reset role");
+    assert.equal(
+      (
+        await a.query(
+          "select count(*)::int n from public.time_sessions where organization_id=$1 and employee_id=$2 and clock_out is null",
+          [org, secondEmployee],
+        )
+      ).rows[0].n,
+      1,
+    );
+    await authB();
+    assert.ok((await punchB("out")).ok);
+    // Fetch by kiosk ids rather than clock precision/ordering assumptions.
+    const complete = (
+      await a.query(
+        "select s.* from public.time_sessions s join public.time_kiosks k on k.id=s.kiosk_id where k.organization_id=$1 and k.name in ('Handoff A','Handoff B') order by s.id",
+        [org],
+      )
+    ).rows;
+    assert.equal(complete.length, 2);
+    assert.ok(
+      complete.every((c) => c.approved_at && c.approval_source === "automatic"),
+    );
+    // Simulate previously pending routine records, then correct one concurrently
+    // with a confirmed bulk request. No stale approval may win the org lock.
+    await a.query(
+      "update public.time_sessions set approved_at=null,approved_by=null,revision=revision+1 where id=any($1::uuid[])",
+      [complete.map((c) => c.id)],
+    );
+    await asManager(a);
+    await asManager(b);
+    const dates = {
+      from: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10),
+      to: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10),
+    };
+    const preview = await manage(a, "bulk_preview", dates);
+    assert.equal(preview.count, 2);
+    const fresh = (
+      await a.query(
+        "select *,clock_in::text as punch_in,clock_out::text as punch_out from public.time_sessions where id=$1",
+        [complete[0].id],
+      )
+    ).rows[0];
+    await a.query("begin");
+    await manage(a, "correct", {
+      session_id: fresh.id,
+      revision: fresh.revision,
+      clock_in: fresh.punch_in,
+      clock_out: fresh.punch_out,
+      breaks: [],
+      reason: "Concurrent handoff correction",
+    });
+    const bulk = manage(b, "bulk_approve", {
+      ...dates,
+      token: preview.token,
+      confirmed: true,
+    }).then(
+      () => false,
+      (e) => /changed/.test(e.message),
+    );
+    await a.query("commit");
+    assert.equal(await bulk, true);
+    const reviewed = await manage(a, "bulk_preview", dates);
+    assert.equal(reviewed.count, 1);
+    assert.equal(
+      (
+        await manage(a, "bulk_approve", {
+          ...dates,
+          token: reviewed.token,
+          confirmed: true,
+        })
+      ).approved,
+      1,
+    );
+    await assert.rejects(
+      () =>
+        manage(b, "bulk_approve", {
+          ...dates,
+          token: reviewed.token,
+          confirmed: true,
+        }),
+      /changed/,
+    );
   } finally {
     for (const c of clients) {
       await c.query("rollback").catch(() => {});

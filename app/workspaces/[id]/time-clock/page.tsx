@@ -9,6 +9,9 @@ import {
   type Timecard,
 } from "@/lib/time-clock/records";
 import { addDays, localDate, weekStart } from "@/lib/scheduling/time";
+import { payrollEnabled } from "@/lib/payroll/feature";
+import { contextBounds, type Settings } from "@/lib/payroll/engine";
+import { recordedOvertime } from "@/lib/time-clock/overtime";
 import { Correction } from "./correction";
 import { ClockForm } from "./controls";
 export const dynamic = "force-dynamic";
@@ -48,6 +51,41 @@ export default async function Page({
       </Frame>
     );
   }
+  const paySettings =
+    manager && payrollEnabled()
+      ? await db
+          .from("payroll_settings")
+          .select("*")
+          .eq("organization_id", id)
+          .maybeSingle()
+      : { data: null, error: null };
+  if (paySettings.error)
+    throw Error("Unable to load overtime workweek settings");
+  const overtimeSettings: Settings = paySettings.data || {
+    frequency: "weekly",
+    anchor: "2026-01-04",
+    timezone: org.timezone,
+    workweek_day: 7,
+    workweek_time: "00:00",
+    rule: "unverified",
+    employee_access: false,
+  };
+  const overtimeBounds = contextBounds(
+    overtimeSettings,
+    bounds.start,
+    bounds.end,
+  );
+  const bulkPreview = manager
+    ? await db.rpc("time_clock_manage", {
+        org: id,
+        command: "bulk_preview",
+        payload: { from, to, employee_id: query.employee || "" },
+      })
+    : { data: null, error: null };
+  if (bulkPreview.error)
+    throw Error(
+      "Unable to preview timecard approval. Confirm the approval-workflow migration is installed.",
+    );
   const rosterResult = await db
     .from("employees")
     .select("id,display_name,user_id,archived_at")
@@ -160,6 +198,29 @@ export default async function Page({
     throw Error(
       "Unable to load timekeeping. Confirm the Phase 9 migration is installed.",
     );
+  let overtimeQuery = db
+    .from("time_sessions")
+    .select("*,time_breaks(starts_at,ends_at)")
+    .eq("organization_id", id)
+    .lt("clock_in", overtimeBounds.end)
+    .or(`clock_out.is.null,clock_out.gt.${overtimeBounds.start}`)
+    .limit(1001);
+  if (employee) overtimeQuery = overtimeQuery.eq("employee_id", employee);
+  const overtimeResult = manager
+    ? await overtimeQuery
+    : { data: [], error: null };
+  if (overtimeResult.error) throw Error("Unable to load overtime visibility");
+  const overtimeComplete = (overtimeResult.data?.length || 0) <= 1000;
+  const overtime =
+    manager && overtimeComplete
+      ? recordedOvertime(
+          (overtimeResult.data || []) as Timecard[],
+          bounds.start,
+          bounds.end,
+          now,
+          overtimeSettings,
+        )
+      : new Map<string, number>();
   const cards = (sessions.data || []) as Timecard[],
     current = (open.data || []) as Timecard[];
   const total = (start: string, end: string) =>
@@ -244,6 +305,24 @@ export default async function Page({
           </Link>
         )}
       </form>
+      {manager && (
+        <p>
+          Recorded overtime in selected range:{" "}
+          <strong>
+            {overtimeComplete
+              ? [...overtime.values()].reduce((a, b) => a + b, 0).toFixed(4) +
+                " h"
+              : "Too many records — narrow the range"}
+          </strong>
+          . Visibility uses a 40-hour, 168-hour workweek
+          {paySettings.data
+            ? " from payroll settings"
+            : " starting Sunday at midnight from the January 4, 2026 reference"}
+          . Open sessions are provisional. Overtime needs no advance
+          authorization; wage calculations and payroll report approval remain in
+          Payroll.
+        </p>
+      )}
       <p>
         Daily and weekly totals use the current workplace week and selected
         employee. Up to 1,000 records are shown; narrow the range if the limit
@@ -271,6 +350,56 @@ export default async function Page({
           </strong>
         </article>
       </div>
+      {manager && (
+        <section className="panel workspace-card time-clock-section">
+          <h2>Approve eligible pending timecards</h2>
+          <p>
+            Routine new kiosk clock-outs are approved automatically. Exceptions
+            and manager-edited timecards need individual review. Payroll reports
+            still require separate approval.
+          </p>
+          <p>
+            {bulkPreview.data?.count || 0} eligible pending timecards fully
+            inside {from} – {to}
+            {employee ? " for the selected employee" : " for all employees"}.
+            Historical pending cards remain pending until explicitly reviewed
+            here.
+          </p>
+          {bulkPreview.data?.disabled && (
+            <p>
+              Enable the workplace time clock in settings to review pending
+              approvals.
+            </p>
+          )}
+          {bulkPreview.data?.too_many && (
+            <p>
+              More than 1,000 eligible timecards. Narrow the date range before
+              confirming.
+            </p>
+          )}
+          {bulkPreview.data?.count > 0 && !bulkPreview.data.too_many && (
+            <ClockForm org={id} command="bulk_approve">
+              <input type="hidden" name="from" value={from} />
+              <input type="hidden" name="to" value={to} />
+              <input type="hidden" name="employee_id" value={employee || ""} />
+              <input
+                type="hidden"
+                name="token"
+                value={bulkPreview.data.token}
+              />
+              <label>
+                <input type="checkbox" name="confirmed" required />I reviewed
+                this date range and confirm approval of all eligible pending
+                timecards shown in this preview.
+              </label>
+              <p>
+                Unresolved exceptions are excluded. If eligibility or a timecard
+                changes, refresh and confirm again.
+              </p>
+            </ClockForm>
+          )}
+        </section>
+      )}
       <section className="time-clock-section">
         <h2>Current attendance</h2>
         <p>
@@ -399,6 +528,19 @@ export default async function Page({
                   {pending ? "Pending Correction" : status(card, now)}
                 </strong>
               </div>
+              {(overtime.get(card.id) || 0) > 0 && (
+                <p className="schedule-badge">
+                  Overtime Recorded · {overtime.get(card.id)!.toFixed(4)} h
+                </p>
+              )}
+              {manager &&
+                bulkPreview.data?.exceptions
+                  ?.filter((e: { id: string }) => e.id === card.id)
+                  .map((e: { id: string; issues: string[] }) => (
+                    <p key={e.id} role="status">
+                      Review required: {e.issues.join("; ")}
+                    </p>
+                  ))}
               <p>
                 In: {fmt(card.clock_in)}
                 <br />
@@ -416,15 +558,27 @@ export default async function Page({
               ))}
               {manager && !card.voided_at ? (
                 <>
-                  <ClockForm org={id} command="approve">
-                    <input type="hidden" name="session_id" value={card.id} />
-                    <input
-                      type="hidden"
-                      name="revision"
-                      value={card.revision}
-                    />
-                    <p>Approve this completed timecard.</p>
-                  </ClockForm>
+                  {card.approved_at ? (
+                    <p className="schedule-badge">
+                      Approved
+                      {card.approval_source === "automatic"
+                        ? " automatically"
+                        : ""}
+                    </p>
+                  ) : (
+                    <ClockForm org={id} command="approve">
+                      <input type="hidden" name="session_id" value={card.id} />
+                      <input
+                        type="hidden"
+                        name="revision"
+                        value={card.revision}
+                      />
+                      <p>
+                        Approve this completed timecard after reviewing and
+                        resolving exceptions.
+                      </p>
+                    </ClockForm>
+                  )}
                   <details>
                     <summary>Correct this timecard</summary>
                     <Correction

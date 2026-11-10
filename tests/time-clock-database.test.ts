@@ -231,6 +231,10 @@ test("time clock database: roles, enrollment, PIN lockout, punches, idempotency,
       session_id: card.id,
       reason: "Synthetic correction requested",
     });
+    Object.assign(
+      card,
+      await row("select * from public.time_sessions where id=$1", [card.id]),
+    );
     await as(2);
     await assert.rejects(
       manage("approve", { session_id: card.id, revision: card.revision }),
@@ -269,7 +273,7 @@ test("time clock database: roles, enrollment, PIN lockout, punches, idempotency,
     assert.equal(
       (
         await row(
-          "select count(*)::int n from public.time_audit where session_id=$1",
+          "select count(*)::int n from public.time_audit where session_id=$1 and action in ('correct','request_review','approve')",
           [card.id],
         )
       ).n,
@@ -279,7 +283,7 @@ test("time clock database: roles, enrollment, PIN lockout, punches, idempotency,
     assert.equal(
       (
         await row(
-          "select count(*)::int n from public.time_audit where session_id=$1",
+          "select count(*)::int n from public.time_audit where session_id=$1 and action in ('correct','request_review','approve')",
           [card.id],
         )
       ).n,

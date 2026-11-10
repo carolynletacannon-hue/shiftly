@@ -80,6 +80,59 @@ const fixture = createServer((req, res) => {
       ],
       requests: [],
     };
+
+  if (table === "employees")
+    data = [
+      {
+        id: employee,
+        user_id: employee,
+        display_name: "Synthetic Team Member",
+        archived_at: null,
+      },
+    ];
+  if (table === "payroll_settings")
+    data = [
+      {
+        frequency: "weekly",
+        anchor: "2026-01-05",
+        timezone: "America/Denver",
+        workweek_day: 1,
+        workweek_time: "00:00",
+        rule: "federal-weekly-confirmed",
+        employee_access: true,
+      },
+    ];
+  if (table === "time_clock_settings")
+    data = [{ enabled: true, require_breaks: false }];
+  if (table === "time_sessions")
+    data = ["05", "06", "07", "08", "09"].map((d, i) => ({
+      id: `timecard-${i}`,
+      organization_id: org,
+      employee_id: employee,
+      kiosk_id: null,
+      revision: 1,
+      clock_in: `2026-01-${d}T15:00:00Z`,
+      clock_out: `2026-01-${d}T23:15:00Z`,
+      approved_at: i === 0 ? "2026-01-06T00:00Z" : null,
+      approval_source: i === 0 ? "automatic" : null,
+      voided_at: null,
+      time_breaks: [],
+    }));
+  if (table === "time_clock_manage") {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      const command = JSON.parse(body).command;
+      res.end(
+        JSON.stringify(
+          command === "bulk_preview"
+            ? { count: 1, token: "synthetic-preview", exceptions: [] }
+            : { approved: 1 },
+        ),
+      );
+    });
+    return;
+  }
   if (req.method === "HEAD") res.setHeader("Content-Range", "*/0");
   res.end(JSON.stringify(single ? data[0] : data));
 });
@@ -197,6 +250,80 @@ try {
       assert.ok(page.url().includes("Workspace+access+denied"));
     }
   }
+
+  await context.clearCookies();
+  await context.addCookies([
+    {
+      name: "sb-127-auth-token",
+      value: session(owner),
+      domain: "localhost",
+      path: "/",
+    },
+  ]);
+  for (const width of [375, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(
+      `http://localhost:3200/workspaces/${org}/time-clock?from=2026-01-05&to=2026-01-11`,
+    );
+    await page
+      .getByRole("heading", { name: "Time Clock Management", exact: true })
+      .waitFor();
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Approve Timecard", exact: true })
+        .count(),
+      4,
+    );
+    assert.equal(
+      await page
+        .locator(".timecard-list article")
+        .first()
+        .getByRole("button", { name: "Approve Timecard", exact: true })
+        .count(),
+      0,
+    );
+    assert.ok(
+      (
+        await page.locator(".timecard-list article").first().innerText()
+      ).includes("Approved automatically"),
+    );
+    assert.ok(
+      (await page.locator(".timecard-list").innerText()).includes(
+        "Overtime Recorded",
+      ),
+    );
+    const confirm = page.getByRole("checkbox", {
+      name: /I reviewed this date range/,
+    });
+    assert.equal(await confirm.isChecked(), false);
+    await page
+      .getByRole("button", { name: "Approve All Eligible", exact: true })
+      .click();
+    assert.equal(await confirm.evaluate((e) => e.validity.valueMissing), true);
+    assert.equal(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+      false,
+    );
+    await page.screenshot({
+      path: `work/timecard-approval-${width}.png`,
+      fullPage: true,
+    });
+    console.log(
+      `PASS timecard approval labels, approved status, overtime, bulk confirmation and layout ${width}px`,
+    );
+  }
+  await page
+    .getByRole("checkbox", { name: /I reviewed this date range/ })
+    .check();
+  await page
+    .getByRole("button", { name: "Approve All Eligible", exact: true })
+    .click();
+  await page
+    .getByRole("status")
+    .filter({ hasText: "Eligible timecards approved." })
+    .waitFor();
   const kiosk = spawn("node", ["tests/time-clock-browser.mjs"], {
     env: { ...process.env, TIME_CLOCK_TEST_ORIGIN: "http://localhost:3200" },
     stdio: "inherit",
