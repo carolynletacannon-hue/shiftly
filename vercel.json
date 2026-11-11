@@ -7,7 +7,8 @@
       "feat/phase5-shared-shifts": false,
       "feat/employee-lifecycle-navigation": false,
       "feat/phase7-actionable-notifications": false,
-      "fix/phase7-email-delivery": false
+      "fix/phase7-email-delivery": false,
+      "feat/workforce-pilot-security": false
     }
   }
 }
