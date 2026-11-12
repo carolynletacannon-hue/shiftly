@@ -1,0 +1,384 @@
+/* Employees only: compact roster cards, disclosure rows and access actions. */
+.employees-screen .employee-create {
+  padding: 22px 24px;
+}
+.employees-screen .employee-create h2 {
+  margin-bottom: 16px;
+}
+.employees-screen .employee-create > .account-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 420px) auto;
+  align-items: end;
+  gap: 14px;
+  margin: 0;
+}
+.employees-screen .employee-create .employee-accordion {
+  grid-column: 1 / -1;
+}
+.employees-screen .employee-create .employee-accordion-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.employees-screen .employee-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-block: 22px;
+  align-items: start;
+}
+.employees-screen .employee-card {
+  padding: 18px 20px;
+  min-width: 0;
+}
+.employee-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.employee-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.employee-avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #d7e4db;
+  border-radius: 9px;
+  color: var(--accent);
+  background: var(--surface-secondary);
+  font-size: 11px;
+  font-weight: 650;
+  flex-shrink: 0;
+}
+.employee-name-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  min-width: 0;
+}
+.employee-name-line h2,
+.employee-name-line h3 {
+  font-size: 15px;
+  line-height: 1.4;
+  letter-spacing: -0.25px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.employee-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border: 1px solid #dbe5de;
+  border-radius: 5px;
+  background: #f3f7f4;
+  color: #52685a;
+  font-size: 10px;
+  font-weight: 550;
+  line-height: 1.5;
+}
+.employee-status.connected {
+  color: #285a3f;
+  background: #eaf4ed;
+  border-color: #cee2d5;
+}
+.employee-status.invited {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+  color: var(--warning);
+}
+.employee-status.archived {
+  background: #f1f3f2;
+  color: #5a675f;
+}
+.employee-actions-form {
+  flex: 0 0 auto;
+  margin: 0;
+}
+.employee-actions-form .employee-actions-trigger {
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 11px;
+  gap: 6px;
+  box-shadow: none;
+}
+.employee-actions-trigger svg {
+  width: 13px;
+  height: 13px;
+}
+.employee-actions-popover {
+  z-index: 60;
+  width: min(278px, calc(100vw - 24px));
+  background: var(--surface);
+  border: 1px solid #d2dfd7;
+  border-radius: 11px;
+  padding: 6px;
+  box-shadow: var(--shadow-popover);
+  color: var(--text);
+}
+.employee-actions-title {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.employee-actions-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 3px 4px 5px;
+}
+.employee-action-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+.employee-action-item svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.employee-action-item strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 550;
+}
+.employee-action-item small {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.employee-action-item.is-destructive {
+  color: var(--danger);
+}
+.employee-action-item:hover:not(:disabled) {
+  background: var(--surface-secondary);
+}
+.employee-action-item.is-destructive:hover:not(:disabled) {
+  background: var(--danger-bg);
+}
+.employee-action-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: var(--surface-secondary);
+}
+.employee-action-item:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+.employees-screen .employee-lifecycle {
+  margin: 0;
+}
+.employee-accordion {
+  border: 1px solid #e0e8e2;
+  background: #fbfcfb;
+  border-radius: 8px;
+  margin-top: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+.employee-accordion h3 {
+  margin: 0;
+}
+.employee-accordion h3 > button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 42px;
+  padding: 11px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: #3d5847;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.employee-accordion h3 > button > svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+.employee-accordion h3 > button > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.employee-accordion h3 > button:hover {
+  background: #eff5f0;
+}
+.employee-accordion h3 > button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+  border-radius: 8px;
+}
+.employee-accordion-warning {
+  border-color: var(--warning-border);
+  background: #fffbf2;
+}
+.employee-accordion-warning h3 > button {
+  color: var(--warning);
+}
+.employee-accordion-warning h3 > button:hover {
+  background: var(--warning-bg);
+}
+.employee-accordion-region {
+  display: grid;
+  grid-template-rows: 0fr;
+}
+.employee-accordion-region > div {
+  overflow: hidden;
+  min-height: 0;
+  visibility: hidden;
+}
+.employee-accordion[data-open="true"] .employee-accordion-region {
+  grid-template-rows: 1fr;
+}
+.employee-accordion[data-open="true"] .employee-accordion-region > div {
+  visibility: visible;
+}
+.employee-accordion[data-open="true"] .employee-accordion-chevron {
+  transform: rotate(180deg);
+}
+.employee-accordion-body {
+  padding: 16px;
+  border-top: 1px solid #e0e8e2;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.employee-accordion-body .account-form {
+  margin: 0;
+  gap: 14px;
+}
+.employee-accordion-body > p {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.employee-accordion-body ul {
+  margin: 0;
+  padding-left: 17px;
+  display: grid;
+  gap: 8px;
+}
+.employee-accordion-body li {
+  margin: 0;
+  font-size: 12px;
+}
+.employee-accordion-body li a {
+  display: inline-flex;
+  margin-left: 5px;
+  font-weight: 550;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.employees-screen .employee-archived-section {
+  padding: 22px 24px;
+}
+.employee-archived-section > p {
+  margin: 8px 0 16px;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.employees-screen .employee-card-archived {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fbfcfb;
+  margin-top: 12px;
+}
+.employee-card-archived .employee-card-header {
+  margin-bottom: 4px;
+}
+.employee-access-note {
+  margin: 0 0 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .employee-accordion-region {
+    transition: grid-template-rows 180ms ease;
+  }
+  .employee-accordion-region > div {
+    transition: visibility 180ms;
+  }
+  .employee-accordion-chevron {
+    transition: transform 180ms ease;
+  }
+  .employee-accordion h3 > button,
+  .employee-action-item {
+    transition: background-color 120ms ease;
+  }
+  .employee-actions-popover[data-state="open"] {
+    animation: surface-enter 120ms ease-out;
+  }
+}
+@media (max-width: 1100px) {
+  .employees-screen .employee-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .employees-screen .employee-create,
+  .employees-screen .employee-archived-section {
+    padding: 18px;
+  }
+  .employees-screen .employee-create > .account-form {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .employees-screen .employee-create .employee-accordion-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .employees-screen .employee-list {
+    margin-block: 16px;
+    gap: 12px;
+  }
+  .employees-screen .employee-card {
+    padding: 16px;
+  }
+  .employee-name-line h2,
+  .employee-name-line h3 {
+    font-size: 14px;
+  }
+  .employee-card-header {
+    gap: 8px;
+  }
+  .employee-actions-form .employee-actions-trigger,
+  .employee-action-item,
+  .employee-accordion h3 > button {
+    min-height: 44px;
+  }
+  .employee-identity {
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .employee-avatar {
+    width: 30px;
+    height: 30px;
+  }
+}
