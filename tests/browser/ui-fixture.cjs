@@ -27,6 +27,7 @@ const requests = [];
 let fixtureEmployees = [];
 let fixtureStatuses = {};
 let fixtureInvitations = [];
+let tableResponses = {};
 const employeeCommands = [];
 const fixture = createServer((req, res) => {
   const url = new URL(req.url, "http://localhost");
@@ -121,6 +122,22 @@ const fixture = createServer((req, res) => {
   if (table === "employees" && id === owner) result = fixtureEmployees;
   if (table === "invitations") result = fixtureInvitations;
   if (table === "notifications") result = { unread: 0 };
+  if (Object.hasOwn(tableResponses, table)) {
+    result = tableResponses[table];
+    if (Array.isArray(result))
+      result = result.filter((row) =>
+        [...url.searchParams].every(([key, query]) => {
+          if (!Object.hasOwn(row, key)) return true;
+          if (query.startsWith("eq."))
+            return String(row[key]) === query.slice(3);
+          if (query.startsWith("lt.")) return String(row[key]) < query.slice(3);
+          if (query.startsWith("gt.")) return String(row[key]) > query.slice(3);
+          if (query.startsWith("gte."))
+            return String(row[key]) >= query.slice(4);
+          return true;
+        }),
+      );
+  }
   if (req.method === "HEAD") res.setHeader("Content-Range", "*/0");
   if (single && !result.length) {
     res.statusCode = 406;
@@ -163,6 +180,9 @@ module.exports = {
   owner,
   employee,
   employeeCommands,
+  setTableResponses: (responses) => {
+    tableResponses = responses;
+  },
   setInvitations: (invitations) => {
     fixtureInvitations = invitations;
   },
