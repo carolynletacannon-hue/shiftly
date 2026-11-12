@@ -70,9 +70,8 @@ exports.checkColors = async ({
       ),
       card.getByRole("button", { name: "Save employee", exact: true }).click(),
     ]);
-    await saved.finished();
+    assert.equal(saved.status(), 200);
     await page.waitForURL(/message=/);
-    await page.waitForLoadState("networkidle");
     await page.reload();
     await card.locator(`[role=img][data-employee-color="${chosen}"]`).waitFor();
     const second = await browser.newContext({
@@ -132,13 +131,17 @@ exports.checkColors = async ({
       ),
       card.getByRole("button", { name: "Save employee", exact: true }).click(),
     ]);
-    await restored.finished();
-    await page.waitForLoadState("networkidle");
+    assert.equal(restored.status(), 200);
+    // Next dev can leave an action response stream open after committing. Check
+    // the rendered result and a fresh request instead of waiting for stream EOF.
+    const original = index === 0 ? "blue" : "purple";
+    await card.locator(`[role=img][data-employee-color="${original}"]`).waitFor();
+    await page.reload();
+    await card.locator(`[role=img][data-employee-color="${original}"]`).waitFor();
   }
   await context.addCookies([cookie(employee)]);
   await page.goto(url);
   await page.waitForURL(/\/workspaces\?message=Workspace/);
-  await page.waitForLoadState("networkidle");
   assert.equal(
     await page.getByRole("radio").count(),
     0,

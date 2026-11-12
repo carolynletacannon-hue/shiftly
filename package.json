@@ -8,7 +8,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "node --conditions=react-server --import tsx --test tests/*.test.ts && node --import tsx --test tests/*.test.tsx",
-    "test:postgres": "node --conditions=react-server --import tsx --test --test-concurrency=1 tests/postgres-concurrency.ts tests/multi-employee-requests.test.ts tests/calendar-database.test.ts tests/time-clock-concurrency.ts tests/time-clock-database.test.ts tests/payroll-database.test.ts tests/timecard-approval-database.test.ts tests/connect-database.test.ts tests/employee-colors.test.ts",
+    "test:postgres": "node --conditions=react-server --import tsx --test --test-concurrency=1 tests/postgres-concurrency.ts tests/multi-employee-requests.test.ts tests/calendar-database.test.ts tests/time-clock-concurrency.ts tests/time-clock-database.test.ts tests/payroll-database.test.ts tests/timecard-approval-database.test.ts tests/connect-database.test.ts tests/pilot-security.test.ts tests/employee-colors.test.ts",
     "test:time-clock:browser": "node tests/time-clock-browser.mjs",
     "test:payroll:browser": "node tests/payroll-browser.mjs"
   },

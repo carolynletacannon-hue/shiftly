@@ -188,7 +188,9 @@ function session(id) {
     }
     for (const width of [375, 768, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
-      await page.goto("http://localhost:3100");
+      const response = await page.goto("http://localhost:3100");
+      assert.equal(response.headers()["x-frame-options"], "DENY");
+      assert.equal(response.headers()["content-security-policy"], "frame-ancestors 'none'");
       await page.getByRole("heading", { level: 1 }).waitFor();
       await audit(`homepage ${width}`);
       await page.screenshot({

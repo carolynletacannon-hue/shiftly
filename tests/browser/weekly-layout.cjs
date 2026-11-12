@@ -118,6 +118,9 @@ fs.mkdirSync(dir, { recursive: true });
     });
     const context = await browser.newContext({ reducedMotion: "reduce" });
     const page = await context.newPage();
+    // Allow cold development compilation; wait for page content below rather
+    // than unrelated background requests becoming idle.
+    page.setDefaultNavigationTimeout(60_000);
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     async function audit(selector) {
@@ -206,9 +209,10 @@ fs.mkdirSync(dir, { recursive: true });
         await page.setViewportSize({ width, height: 1000 });
         await page.goto(
           `http://localhost:3100/workspaces/${org}/${test.path}?week=${week}&view=${test.view || ""}`,
+          { waitUntil: "domcontentloaded" },
         );
-        await page.waitForLoadState("networkidle");
         await page.locator(test.grid).waitFor();
+        await page.evaluate(() => document.fonts.ready);
         if (process.env.COLOR_TEST_ARTIFACTS) {
           assert.ok(
             (await page.locator(`${test.grid} [data-employee-color]`).count()) >
