@@ -1,3 +1,4 @@
+import { EmployeeColorLabel } from "./employee-color-label";
 import { addDays, localDate, weekBounds } from "./time";
 import type { Member, Shift } from "./types";
 
@@ -53,7 +54,7 @@ export function PrintSchedule({
     return `${format.format(start)} – ${endDay}${format.format(end)}`;
   };
   const bounds = weekBounds(week, timezone);
-  const roster = new Map(members.map((member) => [member.id, member.name]));
+  const roster = new Map(members.map((member) => [member.id, member]));
   // Assignment rows share a persisted shift identity. Equal times alone never
   // combine unrelated positions, labels, notes or coverage requirements.
   const slots = [
@@ -167,8 +168,13 @@ export function PrintSchedule({
                           .filter((item) => item.employee_id)
                           .map((item) => (
                             <li key={item.id}>
-                              {roster.get(item.employee_id!) ||
-                                "Employee name unavailable"}
+                              <EmployeeColorLabel
+                                name={
+                                  roster.get(item.employee_id!)?.name ||
+                                  "Employee name unavailable"
+                                }
+                                color={roster.get(item.employee_id!)?.color_key}
+                              />
                             </li>
                           ))}
                         {unassigned > 0 && (

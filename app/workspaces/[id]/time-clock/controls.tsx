@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/app/ui/button";
 import { clockButtonLabel } from "@/lib/time-clock/approval-labels";
 import { useActionState, useEffect, useState } from "react";
 import { clockAction, type Result } from "./actions";
@@ -27,17 +28,17 @@ export function ClockForm({
       <input type="hidden" name="organization_id" value={org} />
       <input type="hidden" name="command" value={command} />
       {children}
-      <button className="button secondary" disabled={pending}>
+      <Button className="button secondary" disabled={pending} aria-busy={pending}>
         {clockButtonLabel(command, pending)}
-      </button>
+      </Button>
       {state.error && <p role="alert">{state.error}</p>}
       {state.message && <p role="status">{state.message}</p>}
       {pin && (
         <div className="pin-reveal">
           <strong aria-label="New employee PIN">{pin}</strong>
-          <button type="button" onClick={() => setPin(undefined)}>
+          <Button type="button" onClick={() => setPin(undefined)}>
             Hide PIN
-          </button>
+          </Button>
         </div>
       )}
     </form>

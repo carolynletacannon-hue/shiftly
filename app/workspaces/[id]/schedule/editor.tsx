@@ -1,4 +1,8 @@
 "use client";
+import { Checkbox } from "@/app/ui/checkbox";
+import { Card } from "@/app/ui/surfaces";
+import { Select } from "@/app/ui/select";
+import { Button } from "@/app/ui/button";
 
 import {
   useRef,
@@ -204,7 +208,7 @@ export function ScheduleEditor({
       </div>
 
       {!schedule ? (
-        <section className="panel coverage-empty">
+        <Card className="panel coverage-empty">
           <div className="empty-icon" aria-hidden="true">
             ▦
           </div>
@@ -227,25 +231,25 @@ export function ScheduleEditor({
               <summary>Copy assignments from last week (optional)</summary>
               <label>
                 Starting point
-                <select name="copy_previous" defaultValue="no">
+                <Select name="copy_previous" defaultValue="no">
                   <option value="no">Use current coverage requirements</option>
                   <option value="yes">
                     Requirements + previous week assignments
                   </option>
-                </select>
+                </Select>
               </label>
               <label>
                 Repeated daylight-saving hour
-                <select name="time_choice" defaultValue="reject">
+                <Select name="time_choice" defaultValue="reject">
                   <option value="reject">
                     Ask me if a copied time is ambiguous
                   </option>
                   <option value="earlier">Use earlier occurrence</option>
                   <option value="later">Use later occurrence</option>
-                </select>
+                </Select>
               </label>
             </details>
-            <button className="button primary">Create weekly draft</button>
+            <Button icon="plus" className="button primary">Create weekly draft</Button>
           </CommandForm>
           {!advanced && (
             <div className="time-off-preview">
@@ -268,12 +272,12 @@ export function ScheduleEditor({
               />
             </div>
           )}
-        </section>
+        </Card>
       ) : (
         <>
           {!advanced && (
             <>
-              <section className="coverage-summary panel">
+              <Card className="coverage-summary panel">
                 <div
                   className="coverage-progress"
                   aria-label={`${covered} of ${progress.required} coverage slots filled`}
@@ -307,15 +311,15 @@ export function ScheduleEditor({
                   </div>
                 </div>
                 <div className="schedule-tools">
-                  <button
+                  <Button aria-busy={pending}
                     type="button"
                     className="button secondary"
                     disabled={pending}
                     onClick={() => window.print()}
                   >
                     Print Schedule
-                  </button>
-                  <button
+                  </Button>
+                  <Button aria-busy={pending}
                     type="button"
                     className="button primary"
                     disabled={
@@ -325,11 +329,11 @@ export function ScheduleEditor({
                     onClick={() => setConfirmPublish(true)}
                   >
                     {schedule.published_revision ? "Republish" : "Publish"}
-                  </button>
+                  </Button>
                 </div>
-              </section>
+              </Card>
 
-              <section className="panel workspace-card weekly-hours">
+              <Card className="panel workspace-card weekly-hours">
                 <h2>Employee hours this week</h2>
                 <div className="hours-list">
                   {members.map((member) => (
@@ -348,7 +352,7 @@ export function ScheduleEditor({
                     </p>
                   ))}
                 </div>
-              </section>
+              </Card>
               {highHours.length > 0 && (
                 <aside className="notice hours-review">
                   <div>
@@ -370,7 +374,7 @@ export function ScheduleEditor({
               )}
 
               {confirmPublish && (
-                <section
+                <Card
                   className={`panel publish-review ${unfilled ? "incomplete" : ""}`}
                   role="alertdialog"
                   aria-labelledby="publish-title"
@@ -389,7 +393,7 @@ export function ScheduleEditor({
                     </p>
                   </div>
                   <div className="schedule-tools">
-                    <button
+                    <Button aria-busy={pending}
                       className={unfilled ? "button danger" : "button primary"}
                       disabled={pending}
                       onClick={() =>
@@ -402,18 +406,18 @@ export function ScheduleEditor({
                       {unfilled
                         ? "Confirm incomplete publication"
                         : "Confirm publication"}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       className="button secondary"
                       onClick={() => setConfirmPublish(false)}
                     >
                       Keep editing
-                    </button>
+                    </Button>
                   </div>
-                </section>
+                </Card>
               )}
 
-              <section className="panel coverage-grid-panel">
+              <Card className="panel coverage-grid-panel">
                 <CoverageCalendar
                   availabilityTimezone={availabilityTimezone}
                   timeOff={timeOff}
@@ -457,7 +461,7 @@ export function ScheduleEditor({
                     )
                   }
                 />
-              </section>
+              </Card>
 
               {carryIn.length > 0 && (
                 <aside className="carry-in coverage-carry-in">
@@ -473,7 +477,7 @@ export function ScheduleEditor({
               )}
 
               {slotEditor && (
-                <section className="panel one-off-editor" ref={editorRef}>
+                <Card className="panel one-off-editor" ref={editorRef}>
                   <div className="editor-heading">
                     <div>
                       <p className="eyebrow">SHIFT DETAILS</p>
@@ -520,7 +524,7 @@ export function ScheduleEditor({
                     }
                   />
                   {slotEditor.slot && (
-                    <button
+                    <Button aria-busy={pending}
                       className="button danger"
                       disabled={pending}
                       onClick={() =>
@@ -537,9 +541,9 @@ export function ScheduleEditor({
                       }
                     >
                       Remove entire shift
-                    </button>
+                    </Button>
                   )}
-                </section>
+                </Card>
               )}
             </>
           )}
@@ -598,10 +602,10 @@ export function ScheduleEditor({
                           firstDay={firstDay}
                         />
                         <div className="schedule-tools">
-                          <button className="button secondary">
+                          <Button icon="check" className="button secondary">
                             Save rule
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             type="button"
                             className="button danger"
                             onClick={() =>
@@ -613,7 +617,7 @@ export function ScheduleEditor({
                             }
                           >
                             Remove rule
-                          </button>
+                          </Button>
                         </div>
                       </CommandForm>
                     </details>
@@ -632,19 +636,19 @@ export function ScheduleEditor({
                         positionOptions={positionOptions}
                         firstDay={firstDay}
                       />
-                      <button
+                      <Button icon="plus"
                         className="button primary"
                         disabled={!templates.length}
                       >
                         Add rule
-                      </button>
+                      </Button>
                     </CommandForm>
                   </details>
                 </div>
               </section>
 
               <div className="schedule-editor-grid">
-                <section className="panel workspace-card">
+                <Card className="panel workspace-card">
                   <h2>Planning settings</h2>
                   <CommandForm
                     onRun={run}
@@ -665,7 +669,7 @@ export function ScheduleEditor({
                         required
                       />
                     </label>
-                    <button className="button secondary">Save guideline</button>
+                    <Button icon="check" className="button secondary">Save guideline</Button>
                   </CommandForm>
                   <h3>Positions</h3>
                   <p className="muted">
@@ -683,11 +687,11 @@ export function ScheduleEditor({
                       New position
                       <input name="name" maxLength={100} required />
                     </label>
-                    <button className="button secondary">Add position</button>
+                    <Button icon="plus" className="button secondary">Add position</Button>
                   </CommandForm>
-                </section>
+                </Card>
 
-                <section className="panel workspace-card">
+                <Card className="panel workspace-card">
                   <h2>Shift templates</h2>
                   <p className="muted">
                     Templates define labels and local times. The examples are
@@ -715,11 +719,11 @@ export function ScheduleEditor({
                             template={template}
                             positionOptions={positionOptions}
                           />
-                          <button className="button secondary">
+                          <Button icon="check" className="button secondary">
                             Save template
-                          </button>
+                          </Button>
                         </CommandForm>
-                        <button
+                        <Button aria-busy={pending}
                           className="button danger"
                           disabled={pending}
                           onClick={() =>
@@ -731,7 +735,7 @@ export function ScheduleEditor({
                           }
                         >
                           Delete template
-                        </button>
+                        </Button>
                       </details>
                     ))}
                     <details className="template-card">
@@ -744,13 +748,13 @@ export function ScheduleEditor({
                         revision={null}
                       >
                         <TemplateFields positionOptions={positionOptions} />
-                        <button className="button secondary">
+                        <Button icon="plus" className="button secondary">
                           Add template
-                        </button>
+                        </Button>
                       </CommandForm>
                     </details>
                   </div>
-                </section>
+                </Card>
               </div>
             </>
           )}
@@ -791,7 +795,7 @@ function RequirementFields({
     <>
       <label>
         Weekday
-        <select
+        <Select
           name="weekday"
           defaultValue={requirement?.weekday ?? firstDay}
           required
@@ -801,11 +805,11 @@ function RequirementFields({
               {dayName(day)}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       <label>
         Shift template
-        <select
+        <Select
           name="template_id"
           defaultValue={requirement?.template_id || templates[0]?.id || ""}
           required
@@ -816,16 +820,16 @@ function RequirementFields({
               {template.end_time.slice(0, 5)}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       <label>
         Position
-        <select
+        <Select
           name="position_id"
           defaultValue={requirement?.position_id || ""}
         >
           {positionOptions}
-        </select>
+        </Select>
       </label>
       <label>
         Employees needed
@@ -839,9 +843,8 @@ function RequirementFields({
         />
       </label>
       <label className="check-label">
-        <input
+        <Checkbox
           name="is_active"
-          type="checkbox"
           defaultChecked={requirement?.is_active ?? true}
         />
         Active for new weeks
@@ -887,18 +890,17 @@ function TemplateFields({
         />
       </label>
       <label className="check-label">
-        <input
+        <Checkbox
           name="end_next_day"
-          type="checkbox"
           defaultChecked={template?.end_next_day}
         />
         Ends the next day
       </label>
       <label>
         Default position
-        <select name="position_id" defaultValue={template?.position_id || ""}>
+        <Select name="position_id" defaultValue={template?.position_id || ""}>
           {positionOptions}
-        </select>
+        </Select>
       </label>
     </>
   );
@@ -1080,7 +1082,7 @@ function SlotForm({
         <input type="hidden" name="template_id" value={templateId} />
         <label>
           Apply a template
-          <select
+          <Select
             value={templateId}
             onChange={(event) => {
               setTemplateId(event.target.value);
@@ -1102,7 +1104,7 @@ function SlotForm({
                 {template.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label>
           Slot label
@@ -1117,7 +1119,7 @@ function SlotForm({
         {!slot && (
           <label>
             First employee (optional)
-            <select
+            <Select
               name="employee_id"
               value={employee}
               onChange={(event) => setEmployee(event.target.value)}
@@ -1130,18 +1132,18 @@ function SlotForm({
                     {member.name}
                   </option>
                 ))}
-            </select>
+            </Select>
           </label>
         )}
         <label>
           Position
-          <select
+          <Select
             name="position_id"
             value={position}
             onChange={(event) => setPosition(event.target.value)}
           >
             {positionOptions}
-          </select>
+          </Select>
         </label>
         <label>
           Start
@@ -1167,7 +1169,7 @@ function SlotForm({
         </label>
         <label>
           Start DST choice
-          <select
+          <Select
             name="start_choice"
             value={startChoice}
             onChange={(event) =>
@@ -1177,11 +1179,11 @@ function SlotForm({
             <option value="reject">Ask for repeated hour</option>
             <option value="earlier">Earlier occurrence</option>
             <option value="later">Later occurrence</option>
-          </select>
+          </Select>
         </label>
         <label>
           End DST choice
-          <select
+          <Select
             name="end_choice"
             value={endChoice}
             onChange={(event) =>
@@ -1191,7 +1193,7 @@ function SlotForm({
             <option value="reject">Ask for repeated hour</option>
             <option value="earlier">Earlier occurrence</option>
             <option value="later">Later occurrence</option>
-          </select>
+          </Select>
         </label>
         <label className="slot-notes">
           Note visible after publication
@@ -1220,9 +1222,9 @@ function SlotForm({
               : " · unassigned shift"}
           </p>
         )}
-        <button className="button primary" disabled={!!problem}>
+        <Button className="button primary" disabled={!!problem}>
           {slot ? "Save shared shift" : "Add shift"}
-        </button>
+        </Button>
       </fieldset>
     </form>
   );

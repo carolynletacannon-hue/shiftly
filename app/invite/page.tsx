@@ -1,3 +1,5 @@
+import { Card } from "@/app/ui/surfaces";
+import { Button } from "@/app/ui/button";
 import Link from "next/link";
 import { Frame, Message } from "../components";
 import { supabase } from "@/lib/supabase/server";
@@ -15,7 +17,7 @@ export default async function Page({
   const next = "/invite?token=" + encodeURIComponent(token || "");
   return (
     <Frame>
-      <section className="panel auth-card">
+      <Card className="panel auth-card">
         <p className="eyebrow">WELCOME TO MEADOWMARK</p>
         <h1>Join your team</h1>
         <Message text={message} />
@@ -27,7 +29,7 @@ export default async function Page({
           user ? (
             <form action={accept}>
               <input type="hidden" name="token" value={token} />
-              <button className="button primary">Accept invitation</button>
+              <Button className="button primary">Accept invitation</Button>
             </form>
           ) : (
             <p>
@@ -44,7 +46,7 @@ export default async function Page({
         ) : (
           <div><h2>Let’s get you a fresh invitation</h2><p>This link is missing or isn’t valid. Ask your workplace manager to resend your invitation. If it expired or was already used, a new link will help you get started.</p><Link href="/workspaces">Open your workplaces</Link></div>
         )}
-      </section>
+      </Card>
     </Frame>
   );
 }

@@ -5,6 +5,11 @@ import "./scheduling.css";
 import "./design-system.css";
 import "./launch.css";
 import "./products.css";
+import "./controls.css";
+import "react-day-picker/style.css";
+import "./ui/premium.css";
+import "./weekly-layout.css";
+import "./employee-colors.css";
 import "./print-schedule.css";
 
 export const metadata: Metadata = {

@@ -1,4 +1,6 @@
 "use client";
+import { Card } from "@/app/ui/surfaces";
+import { Button } from "@/app/ui/button";
 import { useState } from "react";
 
 type Result = { active?: boolean; url?: string; error?: string };
@@ -64,7 +66,7 @@ export function CalendarControls({
     }
   }
   return (
-    <section
+    <Card
       id="calendar-integration"
       className="panel workspace-card calendar-integration"
       aria-labelledby="calendar-heading"
@@ -90,32 +92,32 @@ export function CalendarControls({
       ) : (
         <>
           <div className="calendar-actions">
-            <button
+            <Button aria-busy={busy} icon="plus"
               type="button"
               className="button"
               disabled={busy}
               onClick={() => (active ? setConfirm("rotate") : update("rotate"))}
             >
               Add to Calendar
-            </button>
+            </Button>
             {active && (
               <>
-                <button
+                <Button aria-busy={busy}
                   type="button"
                   className="button secondary"
                   disabled={busy}
                   onClick={() => setConfirm("rotate")}
                 >
                   Regenerate link
-                </button>
-                <button
+                </Button>
+                <Button aria-busy={busy}
                   type="button"
                   className="button secondary"
                   disabled={busy}
                   onClick={() => setConfirm("revoke")}
                 >
                   Revoke link
-                </button>
+                </Button>
               </>
             )}
           </div>
@@ -134,7 +136,7 @@ export function CalendarControls({
                   : "Revoke this link? Calendar apps will stop receiving updates. Remove the subscribed calendar in each app to clear saved events."}
               </p>
               <div className="calendar-actions">
-                <button
+                <Button aria-busy={busy}
                   type="button"
                   className="button"
                   disabled={busy}
@@ -143,15 +145,15 @@ export function CalendarControls({
                   {confirm === "rotate"
                     ? "Create new link"
                     : "Revoke private link"}
-                </button>
-                <button
+                </Button>
+                <Button aria-busy={busy}
                   type="button"
                   className="button secondary"
                   disabled={busy}
                   onClick={() => setConfirm(null)}
                 >
                   Keep existing link
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -172,9 +174,9 @@ export function CalendarControls({
                 spellCheck={false}
                 onFocus={(e) => e.currentTarget.select()}
               />
-              <button type="button" className="button secondary" onClick={copy}>
+              <Button icon="copy" type="button" className="button secondary" onClick={copy}>
                 Copy subscription link
-              </button>
+              </Button>
               <p className="hint">
                 Copy this link now. It is only shown until you leave this page.
               </p>
@@ -237,6 +239,6 @@ export function CalendarControls({
         schedule up to date. Revoking a link cannot erase events already saved
         by a calendar app.
       </p>
-    </section>
+    </Card>
   );
 }

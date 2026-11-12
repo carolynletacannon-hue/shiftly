@@ -197,6 +197,38 @@ test("calendar PostgreSQL: grants, publication snapshots, lifecycle, isolation, 
       },
     );
     await t.test(
+      "employee color edits preserve published snapshots and calendar subscriptions",
+      async () => {
+        await db.exec("reset role");
+        const before = (
+          await row(
+            "select jsonb_agg(to_jsonb(p) order by id) v from public.published_shifts p where schedule_id=$1",
+            [schedule.id],
+          )
+        ).v;
+        await as(0);
+        await db.query(
+          "update public.employees set color_key='teal' where organization_id=$1 and id=$2",
+          [org, users[1]],
+        );
+        await as(1);
+        assert.equal((await manage("status")).active, true);
+        const unchangedFeed = await feed();
+        assert.equal(unchangedFeed.status, "ok");
+        assert.equal(unchangedFeed.events[0].sequence, 0);
+        await db.exec("reset role");
+        assert.deepEqual(
+          (
+            await row(
+              "select jsonb_agg(to_jsonb(p) order by id) v from public.published_shifts p where schedule_id=$1",
+              [schedule.id],
+            )
+          ).v,
+          before,
+        );
+      },
+    );
+    await t.test(
       "multi-workspace URLs remain separate; unauthorized workspace rotation fails",
       async () => {
         await as(2);

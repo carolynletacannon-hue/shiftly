@@ -1,3 +1,7 @@
+import { EmployeeColorLabel } from "@/lib/scheduling/employee-color-label";
+import { employeeColorStyle } from "@/lib/scheduling/employee-colors";
+import { PageHeader, Card } from "@/app/ui/surfaces";
+import { ButtonLink } from "@/app/ui/button";
 import Link from "next/link";
 import { calendarEnabled } from "@/lib/calendar/token";
 import { calendarAction } from "./calendar/actions";
@@ -62,7 +66,7 @@ export default async function Page({
       .maybeSingle(),
     db
       .from("employees")
-      .select("id,user_id,display_name")
+      .select("id,user_id,display_name,color_key")
       .eq("organization_id", id),
   ]);
   if (publicationError || rosterError)
@@ -106,11 +110,12 @@ export default async function Page({
       id: m.id,
       role: "employee",
       name: m.display_name,
+      color_key: m.color_key,
     }));
   return (
     <>
       <Frame workspace={{ id, role, name: org.name }}>
-        <div className="page-heading">
+        <PageHeader className="page-heading">
           <div>
             <p className="eyebrow">{org.name} · PUBLISHED SHIFTS</p>
             <h1>{team ? "Team schedule" : "My Schedule"}</h1>
@@ -118,7 +123,7 @@ export default async function Page({
               {timezone} · Your team’s latest published version
             </p>
           </div>
-        </div>
+        </PageHeader>
         <nav className="schedule-tabs" aria-label="Published schedule view">
           <Link
             aria-current={!team ? "page" : undefined}
@@ -139,7 +144,7 @@ export default async function Page({
           employee
           view={team ? "team" : "mine"}
         />
-        <section className="panel workspace-card">
+        <Card className="panel workspace-card">
           <div className="schedule-toolbar">
             <div>
               <span className="schedule-badge live">
@@ -194,9 +199,9 @@ export default async function Page({
               warning={168}
             />
           )}
-        </section>
+        </Card>
         {!team && (
-          <section className="panel workspace-card upcoming-shifts">
+          <Card className="panel workspace-card upcoming-shifts">
             <h2>Your upcoming shifts</h2>
             {!upcoming?.length ? (
               <p className="muted">
@@ -210,7 +215,24 @@ export default async function Page({
                     published_schedules: { timezone: string };
                   })[]
                 ).map((s) => (
-                  <article className="template-card" key={s.id}>
+                  <article
+                    className="template-card has-employee-color"
+                    key={s.id}
+                    style={employeeColorStyle(
+                      members.find((member) => member.id === s.employee_id)
+                        ?.color_key,
+                    )}
+                  >
+                    <EmployeeColorLabel
+                      name={
+                        members.find((member) => member.id === s.employee_id)
+                          ?.name || "Team member"
+                      }
+                      color={
+                        members.find((member) => member.id === s.employee_id)
+                          ?.color_key
+                      }
+                    />
                     <p className="eyebrow">
                       {new Intl.DateTimeFormat("en-US", {
                         weekday: "long",
@@ -230,18 +252,18 @@ export default async function Page({
                     <p>{s.position_name}</p>
                     {s.notes && <p>{s.notes}</p>}
                     {new Date(s.starts_at).getTime() > Date.now() && (
-                      <Link
+                      <ButtonLink
                         className="button secondary"
                         href={`/workspaces/${id}/shift-requests?shift=${s.id}`}
                       >
                         Request Coverage or Swap
-                      </Link>
+                      </ButtonLink>
                     )}
                   </article>
                 ))}
               </div>
             )}
-          </section>
+          </Card>
         )}
         {!team && (
           <CalendarControls

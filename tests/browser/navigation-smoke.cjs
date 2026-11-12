@@ -195,8 +195,8 @@ function session(id) {
           assert.deepEqual(result, { overflow: false }, `${id} ${width}`);
         };
         await check();
-        if (id === owner && width <= 1280) assert.ok(await menu.isVisible());
-        if (width === 1800) assert.ok(!(await menu.isVisible()));
+        if (id === owner && width < 1100) assert.ok(await menu.isVisible());
+        if (width >= 1100) assert.ok(!(await menu.isVisible()));
         assert.equal(
           await nav
             .getByRole("link", {
@@ -247,7 +247,30 @@ function session(id) {
           await nav
             .getByRole("link", { name: "Time Off", exact: true })
             .click();
+          await page.waitForURL("**/time-off");
+          await page.waitForLoadState("networkidle");
           assert.equal(await menu.getAttribute("aria-expanded"), "false");
+        }
+        for (const selector of [".workspace-menu", ".product-switcher"]) {
+          const disclosure = page.locator(selector);
+          const trigger = disclosure.locator("summary");
+          await trigger.focus();
+          await page.keyboard.press("Enter");
+          assert.equal(await disclosure.getAttribute("open"), "");
+          await page.keyboard.press("Tab");
+          assert.ok(
+            await disclosure.evaluate((e) => e.contains(document.activeElement)),
+            `${selector} Tab navigation at ${width}px`,
+          );
+          await page.keyboard.press("Escape");
+          assert.equal(await disclosure.getAttribute("open"), null);
+          assert.ok(await trigger.evaluate((e) => e === document.activeElement));
+          await trigger.click();
+          await page.mouse.click(width - 5, 895);
+          assert.equal(await disclosure.getAttribute("open"), null);
+          await trigger.click();
+          await page.locator(".brand").focus();
+          assert.equal(await disclosure.getAttribute("open"), null);
         }
         console.log(`PASS ${id === owner ? "owner" : "employee"} ${width}px`);
       }

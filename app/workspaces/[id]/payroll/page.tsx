@@ -1,3 +1,8 @@
+import { Checkbox } from "@/app/ui/checkbox";
+import { Button, ButtonLink } from "@/app/ui/button";
+import { PageHeader } from "@/app/ui/surfaces";
+import { DatePicker } from "@/app/ui/date-picker";
+import { Select } from "@/app/ui/select";
 import Link from "next/link";
 import { createHash } from "node:crypto";
 import { Temporal } from "@js-temporal/polyfill";
@@ -95,20 +100,20 @@ export default async function Page({
         Explanation
         <input name="reason" required minLength={5} maxLength={1000} />
       </label>
-      <button className="button">
+      <Button className="button">
         {command === "approve"
           ? "Approve report for export"
           : command === "reopen"
             ? "Reopen for correction"
             : "Save"}
-      </button>
+      </Button>
     </form>
   );
   const summary = (key: "totalCents" | "regularNs" | "overtimeNs") =>
     rows.reduce((s, r) => s + BigInt(r[key]), BigInt(0)).toString();
   return (
     <Frame workspace={{ id, role, name: org.data!.name }}>
-      <div className="page-heading">
+      <PageHeader className="page-heading">
         <div>
           <p className="eyebrow">PAYROLL PREPARATION · USD</p>
           <h1>{manager ? "Payroll" : "My Pay Estimates"}</h1>
@@ -117,7 +122,7 @@ export default async function Page({
             statements or confirmation of payment.
           </p>
         </div>
-      </div>
+      </PageHeader>
       <Message text={q.message} />
       {!manager && !settings.employee_access ? (
         <p>Your workplace has not enabled employee pay estimates.</p>
@@ -126,8 +131,7 @@ export default async function Page({
           <form className="time-filter">
             <label>
               Date within pay period
-              <input
-                type="date"
+              <DatePicker
                 name="date"
                 defaultValue={selected.from}
                 required
@@ -136,7 +140,7 @@ export default async function Page({
             {manager && (
               <label>
                 Employee
-                <select name="employee" defaultValue={q.employee || ""}>
+                <Select name="employee" defaultValue={q.employee || ""}>
                   <option value="">All employees</option>
                   {input.employees.map((e) => (
                     <option key={e.id} value={e.id}>
@@ -144,10 +148,10 @@ export default async function Page({
                       {e.archived_at ? " (archived)" : ""}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             )}
-            <button className="button secondary">View period</button>
+            <Button icon="calendar" className="button secondary">View period</Button>
           </form>
           <h2>
             {selected.from} – {selected.through}
@@ -324,7 +328,7 @@ export default async function Page({
                     </label>
                     <label>
                       Classification
-                      <select name="classification">
+                      <Select name="classification">
                         <option value="hourly_nonexempt">
                           Hourly, overtime eligible
                         </option>
@@ -334,7 +338,7 @@ export default async function Page({
                         <option value="other_review">
                           Other compensation — external review
                         </option>
-                      </select>
+                      </Select>
                     </label>
                     <p>
                       To correct an error, append a rate at the same effective
@@ -356,18 +360,17 @@ export default async function Page({
               <>
                 <label>
                   Pay period
-                  <select name="frequency" defaultValue={settings.frequency}>
+                  <Select name="frequency" defaultValue={settings.frequency}>
                     {["weekly", "biweekly", "semimonthly", "monthly"].map(
                       (f) => (
                         <option key={f}>{f}</option>
                       ),
                     )}
-                  </select>
+                  </Select>
                 </label>
                 <label>
                   Period anchor / fixed workweek reference date
-                  <input
-                    type="date"
+                  <DatePicker
                     name="anchor"
                     defaultValue={settings.anchor}
                     required
@@ -385,7 +388,7 @@ export default async function Page({
                 </label>
                 <label>
                   Workweek start day
-                  <select
+                  <Select
                     name="workweek_day"
                     defaultValue={settings.workweek_day}
                   >
@@ -402,7 +405,7 @@ export default async function Page({
                         {d}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
                 <label>
                   Workweek start time
@@ -421,19 +424,18 @@ export default async function Page({
                 </p>
                 <label>
                   Overtime rules
-                  <select name="rule" defaultValue={settings.rule}>
+                  <Select name="rule" defaultValue={settings.rule}>
                     <option value="unverified">
                       Unverified jurisdiction — review required
                     </option>
                     <option value="federal-weekly-confirmed">
                       Reviewed: federal weekly single-rate estimate applies
                     </option>
-                  </select>
+                  </Select>
                 </label>
                 <label>
-                  <input
+                  <Checkbox
                     name="employee_access"
-                    type="checkbox"
                     defaultChecked={settings.employee_access}
                   />
                   Enable employees to view their own pay estimates and wage
@@ -462,12 +464,12 @@ export default async function Page({
                 <p>
                   {h.reason} · Approved {h.created_at}
                 </p>
-                <Link
+                <ButtonLink
                   className="button secondary"
                   href={`/workspaces/${id}/payroll/export?report=${h.id}`}
                 >
                   Export immutable version {h.version} CSV
-                </Link>
+                </ButtonLink>
                 {r.rows.map((row) => (
                   <p key={row.employee}>
                     {row.name} · ${money(row.totalCents)} estimated gross

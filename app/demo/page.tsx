@@ -1,4 +1,7 @@
 "use client";
+import { PageHeader, Card } from "@/app/ui/surfaces";
+import { Button } from "@/app/ui/button";
+import { DatePicker } from "@/app/ui/date-picker";
 import { Brand } from "../brand";
 
 import { useMemo, useState } from "react";
@@ -240,7 +243,7 @@ export default function Home() {
           )}
           {tab === "schedule" && (
             <>
-              <div className="page-heading">
+              <PageHeader className="page-heading">
                 <div>
                   <p className="eyebrow">TEAM SCHEDULING</p>
                   <h1>Weekly schedule</h1>
@@ -248,7 +251,7 @@ export default function Home() {
                     A clear view of who is working and when.
                   </p>
                 </div>
-                <button
+                <Button
                   className="button primary"
                   onClick={() =>
                     setNotice(
@@ -257,8 +260,8 @@ export default function Home() {
                   }
                 >
                   + Publish schedule
-                </button>
-              </div>
+                </Button>
+              </PageHeader>
               <div className="stats">
                 <div className="stat">
                   <span>TEAM MEMBERS</span>
@@ -276,7 +279,7 @@ export default function Home() {
                   <small>Awaiting review</small>
                 </div>
               </div>
-              <section className="panel">
+              <Card className="panel">
                 <div className="panel-header">
                   <div>
                     <h2>Team calendar</h2>
@@ -384,7 +387,7 @@ export default function Home() {
                     }
                   />
                 </div>
-              </section>
+              </Card>
               <div className="hint">
                 Try a shift card to add employees or adjust staffing. This
                 preview resets when you reload.
@@ -393,7 +396,7 @@ export default function Home() {
           )}
           {tab === "requests" && (
             <>
-              <div className="page-heading">
+              <PageHeader className="page-heading">
                 <div>
                   <p className="eyebrow">EMPLOYEE REQUESTS</p>
                   <h1>Time off</h1>
@@ -401,9 +404,9 @@ export default function Home() {
                     Give your team a simpler way to ask for days off.
                   </p>
                 </div>
-              </div>
+              </PageHeader>
               <div className="two-col">
-                <section className="panel">
+                <Card className="panel">
                   <div className="panel-header">
                     <div>
                       <h2>Requests to review</h2>
@@ -426,25 +429,25 @@ export default function Home() {
                         <small>{request.note}</small>
                         {request.status === "Pending" && (
                           <div className="actions">
-                            <button
+                            <Button
                               className="button primary"
                               onClick={() => decide(request.id, "Approved")}
                             >
                               Approve
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                               className="button secondary"
                               onClick={() => decide(request.id, "Denied")}
                             >
                               Deny
-                            </button>
+                            </Button>
                           </div>
                         )}
                       </article>
                     ))}
                   </div>
-                </section>
-                <section className="panel">
+                </Card>
+                <Card className="panel">
                   <div className="panel-header">
                     <div>
                       <h2>Request a day off</h2>
@@ -453,9 +456,8 @@ export default function Home() {
                   </div>
                   <form className="request-form" onSubmit={submitRequest}>
                     <label htmlFor="request-date">Requested date</label>
-                    <input
+                    <DatePicker
                       id="request-date"
-                      type="date"
                       required
                       value={requestDate}
                       onChange={(e) => setRequestDate(e.target.value)}
@@ -468,17 +470,17 @@ export default function Home() {
                       value={requestNote}
                       onChange={(e) => setRequestNote(e.target.value)}
                     />
-                    <button type="submit" className="button primary">
+                    <Button type="submit" className="button primary">
                       Submit demo request
-                    </button>
+                    </Button>
                   </form>
-                </section>
+                </Card>
               </div>
             </>
           )}
           {tab === "team" && (
             <>
-              <div className="page-heading">
+              <PageHeader className="page-heading">
                 <div>
                   <p className="eyebrow">YOUR PEOPLE</p>
                   <h1>Team directory</h1>
@@ -486,8 +488,8 @@ export default function Home() {
                     Seven fictional employees, one organized schedule.
                   </p>
                 </div>
-              </div>
-              <section className="panel">
+              </PageHeader>
+              <Card className="panel">
                 <div className="panel-header">
                   <div>
                     <h2>Employee roster</h2>
@@ -512,7 +514,7 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-              </section>
+              </Card>
             </>
           )}
           <footer>

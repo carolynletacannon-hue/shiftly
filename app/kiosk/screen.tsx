@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/app/ui/button";
 import { useEffect, useRef, useState } from "react";
 import { Brand } from "@/app/brand";
 type Info = {
@@ -253,17 +254,17 @@ export function Kiosk() {
             <p>
               Waiting to clear the secure device cookie and return to sign in.
             </p>
-            <button className="button secondary" disabled={busy} onClick={end}>
+            <Button aria-busy={busy} className="button secondary" disabled={busy} onClick={end}>
               Retry sign out
-            </button>
+            </Button>
           </>
         ) : unauthorized ? (
           <>
             <h2>Manager authorization required</h2>
             <p>This device must be enrolled by an owner or manager.</p>
-            <button className="button secondary" disabled={busy} onClick={end}>
+            <Button aria-busy={busy} className="button secondary" disabled={busy} onClick={end}>
               Clear kiosk mode & sign in
-            </button>
+            </Button>
           </>
         ) : person ? (
           <>
@@ -277,13 +278,13 @@ export function Kiosk() {
             </p>
             <div className="kiosk-actions">
               {retry.current ? (
-                <button
+                <Button aria-busy={busy}
                   disabled={busy}
                   className="button primary"
                   onClick={() => punch(retry.current!.action)}
                 >
                   Retry {labels[retry.current.action]}
-                </button>
+                </Button>
               ) : (
                 (person.status === "out"
                   ? ["in"]
@@ -291,23 +292,23 @@ export function Kiosk() {
                     ? ["break_end"]
                     : ["break_start", "out"]
                 ).map((action) => (
-                  <button
+                  <Button aria-busy={busy}
                     key={action}
                     disabled={busy}
                     className="button primary"
                     onClick={() => punch(action)}
                   >
                     {labels[action]}
-                  </button>
+                  </Button>
                 ))
               )}
-              <button
+              <Button aria-busy={busy}
                 disabled={busy}
                 className="button secondary"
                 onClick={reset}
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </>
         ) : (
@@ -371,13 +372,13 @@ export function Kiosk() {
                   </button>
                 ))}
               </div>
-              <button
+              <Button aria-busy={busy}
                 className="button primary kiosk-continue"
                 disabled={busy || pin.length !== 4}
               >
                 {" "}
                 {busy ? "Checking…" : "Continue"}
-              </button>
+              </Button>
             </form>
             {info?.require_breaks && (
               <p>
@@ -394,9 +395,9 @@ export function Kiosk() {
               This revokes this device. A manager must sign in to authorize it
               again.
             </p>
-            <button className="button secondary" disabled={busy} onClick={end}>
+            <Button aria-busy={busy} className="button secondary" disabled={busy} onClick={end}>
               End & revoke this kiosk
-            </button>
+            </Button>
           </details>
         )}
       </section>

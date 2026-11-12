@@ -1,3 +1,4 @@
+import { PageHeader } from "@/app/ui/surfaces";
 import { DeliveryControls } from "./delivery-controls";
 import { savePreferences, markRead } from "./actions";
 import { Frame } from "@/app/components";
@@ -33,13 +34,13 @@ export default async function Page({
     );
   return (
     <Frame workspace={{ id, role, name: org.data.name }}>
-      <div className="page-heading">
+      <PageHeader className="page-heading">
         <div>
           <p className="eyebrow">{org.data.name}</p>
           <h1>Notifications</h1>
           <p>Updates that help you take the next step.</p>
         </div>
-      </div>
+      </PageHeader>
       <Inbox
         action={markRead}
         org={id}

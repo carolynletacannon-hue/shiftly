@@ -1,6 +1,8 @@
 "use client";
+import { Checkbox } from "@/app/ui/checkbox";
+import { Card } from "@/app/ui/surfaces";
+import { Button, ButtonLink } from "@/app/ui/button";
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import {
   preferenceDefaults,
   preferenceLabels,
@@ -24,7 +26,7 @@ export function PreferenceControls({
   const [message, setMessage] = useState("");
   const [pending, start] = useTransition();
   return (
-    <section className="panel workspace-card">
+    <Card className="panel workspace-card">
       <h2>Notification Preferences</h2>
       <p>
         Email preferences apply only to this workplace. Important updates remain
@@ -72,8 +74,7 @@ export function PreferenceControls({
                     padding: "0.8rem 0",
                   }}
                 >
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={values[key]}
                     disabled={key.startsWith("reminder_")}
                     onChange={(e) => {
@@ -90,14 +91,14 @@ export function PreferenceControls({
               ))}
           </fieldset>
         ))}
-        <button className="button primary" disabled={pending}>
+        <Button aria-busy={pending} className="button primary" disabled={pending}>
           {pending ? "Saving…" : "Save preferences"}
-        </button>
+        </Button>
         <p role="status" aria-live="polite">
           {message}
         </p>
       </form>
-    </section>
+    </Card>
   );
 }
 export type InboxItem = {
@@ -132,15 +133,15 @@ export function Inbox({
     });
   }
   return (
-    <section className="panel workspace-card">
+    <Card className="panel workspace-card">
       <h2>Recent notifications</h2>
-      <button
+      <Button aria-busy={pending}
         className="button secondary"
         disabled={pending || !items.some((n) => !n.read_at)}
         onClick={() => read()}
       >
         Mark all as read
-      </button>
+      </Button>
       <p role="status">{message}</p>
       {!items.length && (
         <p>You’re all caught up. Important updates will appear here.</p>
@@ -157,22 +158,22 @@ export function Inbox({
           </small>
           <div className="schedule-tools">
             {item.href?.startsWith(`/workspaces/${org}/`) && (
-              <Link
+              <ButtonLink
                 className="button secondary"
                 href={item.href}
                 onClick={() => read(item.id)}
               >
                 View details
-              </Link>
+              </ButtonLink>
             )}
             {!item.read_at && (
-              <button
+              <Button aria-busy={pending}
                 className="button secondary"
                 disabled={pending}
                 onClick={() => read(item.id)}
               >
                 Mark as read
-              </button>
+              </Button>
             )}
           </div>
         </article>
@@ -180,6 +181,6 @@ export function Inbox({
       <p>
         <small>Showing the 100 most recent updates.</small>
       </p>
-    </section>
+    </Card>
   );
 }

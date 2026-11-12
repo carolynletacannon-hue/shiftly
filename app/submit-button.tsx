@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/app/ui/button";
 import { useFormStatus } from "react-dom";
 export function SubmitButton({
   children,
@@ -9,13 +10,14 @@ export function SubmitButton({
 }) {
   const { pending } = useFormStatus();
   return (
-    <button
+    <Button
       className="button primary"
       type="submit"
       disabled={pending}
       aria-disabled={pending}
+      aria-busy={pending}
     >
       {pending ? pendingLabel : children}
-    </button>
+    </Button>
   );
 }

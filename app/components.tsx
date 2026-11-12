@@ -1,5 +1,6 @@
 import { payrollEnabled } from "@/lib/payroll/feature";
 import { timeClockEnabled } from "@/lib/time-clock/security";
+import { WorkspaceContext } from "./ui/workspace-context";
 import { TopNavigation } from "./top-navigation";
 export function Frame({
   children,
@@ -9,7 +10,9 @@ export function Frame({
   workspace?: { id: string; role: string; name?: string };
 }) {
   return (
-    <div className="account-shell">
+    <div
+      className={workspace ? "account-shell workspace-shell" : "account-shell"}
+    >
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
@@ -19,6 +22,12 @@ export function Frame({
         payroll={payrollEnabled()}
       />
       <main id="main-content" className="account-page">
+        {workspace && (
+          <WorkspaceContext
+            name={workspace.name || "Your workspace"}
+            role={workspace.role}
+          />
+        )}
         {children}
       </main>
     </div>

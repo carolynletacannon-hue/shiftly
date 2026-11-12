@@ -1,4 +1,7 @@
 "use client";
+import { Icon, type IconName } from "./ui/icons";
+import { Button } from "@/app/ui/button";
+import { useDetailsDismiss } from "./use-details-dismiss";
 import { ProductSwitcher } from "./product-switcher";
 import { NotificationBell } from "./notification-bell";
 import { Brand } from "./brand";
@@ -6,6 +9,15 @@ import Link from "next/link";
 import { logout } from "./auth/actions";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+function navigationIcon(label: string): IconName {
+  if (/Dashboard|Workspaces/.test(label)) return "grid";
+  if (/Employees/.test(label)) return "users";
+  if (/Time Off/.test(label)) return "sun";
+  if (/Requests/.test(label)) return "copy";
+  if (/Clock|Timesheet|Pay/.test(label)) return "clock";
+  if (/Settings|setup/.test(label)) return "settings";
+  return "calendar";
+}
 export function TopNavigation({
   workspace,
   timeClock = false,
@@ -16,6 +28,7 @@ export function TopNavigation({
   workspace?: { id: string; role: string; name?: string };
 }) {
   const pathname = usePathname();
+  const accountRef = useDetailsDismiss(pathname);
   const [unread, setUnread] = useState<number | null>(null);
   useEffect(() => {
     if (!workspace) return;
@@ -52,6 +65,12 @@ export function TopNavigation({
     const header = headerRef.current!;
     const nav = header.querySelector<HTMLElement>("nav")!;
     function measure() {
+      // Workspace navigation becomes a persistent rail on desktop. Mobile and
+      // account pages retain the content-measured disclosure navigation.
+      if (workspace && window.innerWidth >= 1100) {
+        setCollapsed(false);
+        return;
+      }
       const style = getComputedStyle(header);
       const gap = parseFloat(style.columnGap);
       const controls = Array.from(header.children).filter(
@@ -177,7 +196,7 @@ export function TopNavigation({
           if (account) account.open = false;
         }}
       />
-      <button
+      <Button
         ref={menuRef}
         className="mobile-menu button secondary"
         type="button"
@@ -190,8 +209,8 @@ export function TopNavigation({
           setOpen(!open);
         }}
       >
-        Menu <span aria-hidden="true">☰</span>
-      </button>
+        Menu <Icon name="menu" />
+      </Button>
       <nav
         id="app-navigation"
         className={
@@ -213,12 +232,14 @@ export function TopNavigation({
                 : undefined
             }
           >
+            <Icon name={navigationIcon(link.label)} />
             {link.label}
           </Link>
         ))}
       </nav>
       {workspace && <NotificationBell base={base} unread={unread} />}
       <details
+        ref={accountRef}
         className="workspace-menu"
         onToggle={(event) => {
           if (event.currentTarget.open) {
@@ -239,7 +260,7 @@ export function TopNavigation({
             {workspace?.name || "Your workspace"}
             <small>{workspace?.role || "Account"}</small>
           </span>
-          <span aria-hidden="true">⌄</span>
+          <Icon name="chevron-down" className="ui-account-chevron" />
         </summary>
         <div>
           {admin && (

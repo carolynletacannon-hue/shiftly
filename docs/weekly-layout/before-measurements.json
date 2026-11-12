@@ -1,0 +1,254 @@
+[
+  {
+    "name": "manager-schedule",
+    "width": 375,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": false,
+    "gridWidth": 341,
+    "available": 375
+  },
+  {
+    "name": "manager-schedule",
+    "width": 390,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": false,
+    "gridWidth": 356,
+    "available": 390
+  },
+  {
+    "name": "manager-schedule",
+    "width": 768,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": false,
+    "gridWidth": 734,
+    "available": 768
+  },
+  {
+    "name": "manager-schedule",
+    "width": 1024,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": false,
+    "gridWidth": 990,
+    "available": 1024
+  },
+  {
+    "name": "manager-schedule",
+    "width": 1280,
+    "pageOverflow": false,
+    "gridOverflow": true,
+    "parentOverflow": true,
+    "gridWidth": 1218,
+    "available": 1056
+  },
+  {
+    "name": "manager-schedule",
+    "width": 1440,
+    "pageOverflow": false,
+    "gridOverflow": true,
+    "parentOverflow": true,
+    "gridWidth": 1218,
+    "available": 1216
+  },
+  {
+    "name": "manager-schedule",
+    "width": 1920,
+    "pageOverflow": false,
+    "gridOverflow": true,
+    "parentOverflow": true,
+    "gridWidth": 1474,
+    "available": 1540
+  },
+  {
+    "name": "manager-calendar",
+    "width": 375,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": false,
+    "gridWidth": 301,
+    "available": 375
+  },
+  {
+    "name": "manager-calendar",
+    "width": 390,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": false,
+    "gridWidth": 316,
+    "available": 390
+  },
+  {
+    "name": "manager-calendar",
+    "width": 768,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": false,
+    "gridWidth": 682,
+    "available": 768
+  },
+  {
+    "name": "manager-calendar",
+    "width": 1024,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": false,
+    "gridWidth": 938,
+    "available": 1024
+  },
+  {
+    "name": "manager-calendar",
+    "width": 1280,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": true,
+    "gridWidth": 1180,
+    "available": 1056
+  },
+  {
+    "name": "manager-calendar",
+    "width": 1440,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": true,
+    "gridWidth": 1180,
+    "available": 1216
+  },
+  {
+    "name": "manager-calendar",
+    "width": 1920,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": false,
+    "gridWidth": 1422,
+    "available": 1540
+  },
+  {
+    "name": "employee-calendar",
+    "width": 375,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": false,
+    "gridWidth": 301,
+    "available": 375
+  },
+  {
+    "name": "employee-calendar",
+    "width": 390,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": false,
+    "gridWidth": 316,
+    "available": 390
+  },
+  {
+    "name": "employee-calendar",
+    "width": 768,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": false,
+    "gridWidth": 682,
+    "available": 768
+  },
+  {
+    "name": "employee-calendar",
+    "width": 1024,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": false,
+    "gridWidth": 938,
+    "available": 1024
+  },
+  {
+    "name": "employee-calendar",
+    "width": 1280,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": true,
+    "gridWidth": 1180,
+    "available": 1056
+  },
+  {
+    "name": "employee-calendar",
+    "width": 1440,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": true,
+    "gridWidth": 1180,
+    "available": 1216
+  },
+  {
+    "name": "employee-calendar",
+    "width": 1920,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": false,
+    "gridWidth": 1422,
+    "available": 1540
+  },
+  {
+    "name": "employee-personal",
+    "width": 375,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": true,
+    "gridWidth": 1160,
+    "available": 375
+  },
+  {
+    "name": "employee-personal",
+    "width": 390,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": true,
+    "gridWidth": 1160,
+    "available": 390
+  },
+  {
+    "name": "employee-personal",
+    "width": 768,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": true,
+    "gridWidth": 1160,
+    "available": 768
+  },
+  {
+    "name": "employee-personal",
+    "width": 1024,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": true,
+    "gridWidth": 1160,
+    "available": 1024
+  },
+  {
+    "name": "employee-personal",
+    "width": 1280,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": true,
+    "gridWidth": 1160,
+    "available": 1056
+  },
+  {
+    "name": "employee-personal",
+    "width": 1440,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": true,
+    "gridWidth": 1160,
+    "available": 1216
+  },
+  {
+    "name": "employee-personal",
+    "width": 1920,
+    "pageOverflow": false,
+    "gridOverflow": false,
+    "parentOverflow": false,
+    "gridWidth": 1422,
+    "available": 1540
+  }
+]

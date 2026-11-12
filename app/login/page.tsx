@@ -1,3 +1,4 @@
+import { Card } from "@/app/ui/surfaces";
 import { SubmitButton } from "../submit-button";
 import Link from "next/link";
 import { Frame, Input, Message } from "../components";
@@ -10,7 +11,7 @@ export default async function Page({
   const params = await searchParams;
   return (
     <Frame>
-      <section className="panel auth-card">
+      <Card className="panel auth-card">
         <p className="eyebrow">WELCOME TO MEADOWMARK</p>
         <h1>Welcome back</h1>
         <p className="subtitle">Your team, in one organized place.</p>
@@ -44,7 +45,7 @@ export default async function Page({
           </Link>
         </p>
         <Link href="/forgot-password">Forgot password?</Link>
-      </section>
+      </Card>
     </Frame>
   );
 }

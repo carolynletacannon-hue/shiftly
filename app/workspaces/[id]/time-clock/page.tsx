@@ -1,3 +1,8 @@
+import { Checkbox } from "@/app/ui/checkbox";
+import { PageHeader, Card } from "@/app/ui/surfaces";
+import { DatePicker } from "@/app/ui/date-picker";
+import { Select } from "@/app/ui/select";
+import { Button, ButtonLink } from "@/app/ui/button";
 import Link from "next/link";
 import { Frame } from "@/app/components";
 import { requireWorkspace } from "@/lib/auth";
@@ -262,7 +267,7 @@ export default async function Page({
       : "Missing clock-out";
   return (
     <Frame workspace={{ id, role, name: org.name }}>
-      <div className="page-heading">
+      <PageHeader className="page-heading">
         <div>
           <p className="eyebrow">ACTUAL TIME · {org.timezone}</p>
           <h1>{manager ? "Time Clock Management" : "My Timesheet"}</h1>
@@ -271,20 +276,20 @@ export default async function Page({
             provisional. Hours are not payroll.
           </p>
         </div>
-      </div>
+      </PageHeader>
       <form className="time-filter">
         <label>
           From
-          <input type="date" name="from" defaultValue={from} required />
+          <DatePicker name="from" defaultValue={from} required />
         </label>
         <label>
           Through
-          <input type="date" name="to" defaultValue={to} required />
+          <DatePicker name="to" defaultValue={to} required />
         </label>
         {manager && (
           <label>
             Employee
-            <select name="employee" defaultValue={employee || ""}>
+            <Select name="employee" defaultValue={employee || ""}>
               <option value="">All employees</option>
               {roster.map((e) => (
                 <option key={e.id} value={e.id}>
@@ -292,17 +297,17 @@ export default async function Page({
                   {e.archived_at ? " (archived)" : ""}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         )}
-        <button className="button secondary">Apply filters</button>
+        <Button className="button secondary">Apply filters</Button>
         {manager && (
-          <Link
+          <ButtonLink
             className="button secondary"
             href={`/workspaces/${id}/time-clock/export?from=${from}&to=${to}${employee ? `&employee=${employee}` : ""}`}
           >
             Export CSV
-          </Link>
+          </ButtonLink>
         )}
       </form>
       {manager && (
@@ -351,7 +356,7 @@ export default async function Page({
         </article>
       </div>
       {manager && (
-        <section className="panel workspace-card time-clock-section">
+        <Card className="panel workspace-card time-clock-section">
           <h2>Approve eligible pending timecards</h2>
           <p>
             Routine new kiosk clock-outs are approved automatically. Exceptions
@@ -388,7 +393,7 @@ export default async function Page({
                 value={bulkPreview.data.token}
               />
               <label>
-                <input type="checkbox" name="confirmed" required />I reviewed
+                <Checkbox name="confirmed" required />I reviewed
                 this date range and confirm approval of all eligible pending
                 timecards shown in this preview.
               </label>
@@ -398,7 +403,7 @@ export default async function Page({
               </p>
             </ClockForm>
           )}
-        </section>
+        </Card>
       )}
       <section className="time-clock-section">
         <h2>Current attendance</h2>
@@ -422,16 +427,14 @@ export default async function Page({
           <h2>Workplace settings</h2>
           <ClockForm org={id} command="settings">
             <label>
-              <input
-                type="checkbox"
+              <Checkbox
                 name="enabled"
                 defaultChecked={settings.data?.enabled}
               />
               Enable this workplace’s time clock
             </label>
             <label>
-              <input
-                type="checkbox"
+              <Checkbox
                 name="require_breaks"
                 defaultChecked={settings.data?.require_breaks}
               />
@@ -704,7 +707,7 @@ export default async function Page({
         </details>
       )}
       {!manager && (
-        <section className="panel workspace-card time-clock-section">
+        <Card className="panel workspace-card time-clock-section">
           <h2>Missing a whole work session?</h2>
           <ClockForm org={id} command="request">
             <label>
@@ -712,7 +715,7 @@ export default async function Page({
               <textarea name="reason" minLength={5} maxLength={1000} required />
             </label>
           </ClockForm>
-        </section>
+        </Card>
       )}
       <section className="time-clock-section">
         <h2>Correction requests</h2>
@@ -752,12 +755,12 @@ export default async function Page({
                   <input type="hidden" name="request_id" value={r.id} />
                   <label>
                     Decision
-                    <select name="decision">
+                    <Select name="decision">
                       <option value="approved">
                         Approve applied correction
                       </option>
                       <option value="rejected">Reject request</option>
-                    </select>
+                    </Select>
                   </label>
                   <label>
                     Response

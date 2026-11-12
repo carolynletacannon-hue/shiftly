@@ -1,0 +1,166 @@
+/* Muted palette variables come only from the validated, shared eight-key map. */
+.employee-color-swatch {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  border: 5.5px solid var(--employee-tone);
+  border-radius: 50%;
+}
+.employee-color-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border: 4px solid var(--employee-tone);
+  border-radius: 50%;
+}
+.employee-color-label {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 5px 6px;
+  border-inline-start: 3px solid var(--employee-tone);
+  border-radius: 5px;
+  background: var(--employee-tint);
+  color: var(--employee-ink);
+  font-size: inherit;
+  line-height: 1.5;
+  text-align: start;
+}
+.employee-color-label > .employee-color-dot {
+  margin-top: 0.42em;
+}
+.employee-color-label > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.employee-color-names {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.weekly-view .slot-assignee > .employee-color-label {
+  width: 100%;
+}
+@media screen {
+  .coverage-slot.has-employee-color,
+  .schedule-shift.has-employee-color,
+  .template-card.has-employee-color {
+    background: var(--employee-tint);
+    border-inline-start: 3px solid var(--employee-tone);
+    box-shadow: var(--shadow);
+  }
+  .coverage-slot.has-employee-color.has-conflict {
+    border-color: var(--danger-border);
+    border-inline-start-color: var(--employee-tone);
+  }
+  .schedule-shift .employee-color-label {
+    font-size: 12px;
+  }
+  .employee-color-picker {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+  .employee-color-picker > legend {
+    padding: 0;
+    font-size: 12px;
+    font-weight: 550;
+    color: var(--text);
+  }
+  .employee-color-picker > p {
+    margin: 5px 0 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .employee-color-options {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+  }
+  .employee-color-options .employee-color-option {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 8px;
+    min-height: 44px;
+    border: 1px solid var(--border-control);
+    border-radius: 7px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 450;
+    cursor: pointer;
+  }
+  .employee-color-option input[type="radio"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    opacity: 0;
+    padding: 0;
+    margin: 0;
+  }
+  .employee-color-options .employee-color-option:has(input:checked) {
+    background: var(--employee-tint);
+    border-color: var(--employee-tone);
+    box-shadow: inset 0 0 0 1px var(--employee-tone);
+  }
+  .employee-color-selected {
+    width: 14px;
+    height: 14px;
+    margin-inline-start: auto;
+    flex-shrink: 0;
+  }
+  .employee-color-option:hover {
+    background: var(--employee-tint);
+  }
+  .employee-color-option:focus-within {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  @media (max-width: 600px) {
+    .employee-color-options {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .employee-color-option {
+      transition:
+        background-color 120ms ease,
+        border-color 120ms ease;
+    }
+  }
+  @media (forced-colors: active) {
+    .employee-color-option input[type="radio"] {
+      position: static;
+      width: 18px;
+      height: 18px;
+      opacity: 1;
+    }
+    .employee-color-label {
+      border: 1px solid CanvasText;
+    }
+  }
+}
+@media print {
+  .print-schedule .employee-color-label {
+    border-inline-start: 2pt solid var(--employee-tone);
+    border-radius: 0;
+    padding: 0 0 0 4pt;
+    gap: 4pt;
+    font: inherit;
+    color: black !important;
+  }
+  .print-schedule .employee-color-dot {
+    flex-basis: 6pt;
+    width: 6pt;
+    height: 6pt;
+    border-width: 3pt;
+  }
+}

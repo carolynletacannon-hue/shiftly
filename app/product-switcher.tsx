@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useDetailsDismiss } from "./use-details-dismiss";
 import {
   products,
   productDestination,
@@ -42,24 +42,7 @@ export function ProductSwitcher({
   organizationId?: string;
   onOpen?: () => void;
 }) {
-  const details = useRef<HTMLDetailsElement>(null);
-  useEffect(() => {
-    function close(event: PointerEvent | KeyboardEvent) {
-      if (!details.current?.open) return;
-      if (event instanceof KeyboardEvent) {
-        if (event.key !== "Escape") return;
-        details.current.open = false;
-        details.current.querySelector("summary")?.focus();
-      } else if (!details.current.contains(event.target as Node))
-        details.current.open = false;
-    }
-    document.addEventListener("pointerdown", close);
-    document.addEventListener("keydown", close);
-    return () => {
-      document.removeEventListener("pointerdown", close);
-      document.removeEventListener("keydown", close);
-    };
-  }, []);
+  const details = useDetailsDismiss();
   return (
     <details
       className="product-switcher"
