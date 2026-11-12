@@ -8,7 +8,7 @@
   --surface-secondary: #F0F5F1;
   --border: #E2E9E4;
   --text: #202C26;
-  --text-secondary: #68786E;
+  --text-secondary: #56685C;
   --accent: #356B52;
   --accent-hover: #28543F;
   --accent-light: #E0EDE5;
@@ -19,8 +19,14 @@
   --danger: #A13D47;
   --danger-bg: #FBEFF0;
   --danger-border: #E8C5CA;
-  --shadow: 0 2px 10px rgb(32 44 38 / 4%);
-  --focus: #5C9475;
+  --shadow: 0 2px 8px rgb(32 44 38 / 5%);
+  --shadow-popover: 0 12px 32px rgb(32 44 38 / 12%), 0 2px 6px rgb(32 44 38 / 5%);
+  --radius-control: 10px;
+  --radius-panel: 14px;
+  --control-height: 44px;
+  --border-control: #788C7E;
+  --duration-ui: 140ms;
+  --focus: #356B52;
   --ink: var(--text);
   --line: var(--border);
   /* Compatibility aliases for existing components. */
@@ -139,7 +145,7 @@ input[type="checkbox"] {
   background: var(--blue);
   color: #fff;
   border-color: var(--accent);
-  box-shadow: 0 3px 8px #0002;
+  box-shadow: var(--shadow);
 }
 .button.primary:hover {
   background: var(--accent-hover);
@@ -167,7 +173,7 @@ input[type="checkbox"] {
 .coverage-carry-in {
   background: var(--surface);
   border-color: var(--border);
-  box-shadow: 0 5px 18px #00000015;
+  box-shadow: var(--shadow);
 }
 .panel {
   border-radius: 14px;
@@ -316,7 +322,7 @@ input[type="checkbox"] {
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 16px 40px #0005;
+  box-shadow: var(--shadow-popover);
 }
 .workspace-menu a {
   display: block;
@@ -492,7 +498,7 @@ input[type="checkbox"] {
 .coverage-slot.unassigned {
   background: var(--surface);
   border-color: var(--border);
-  box-shadow: 0 3px 8px #0002;
+  box-shadow: var(--shadow);
 }
 .coverage-slot.covered {
   border-color: var(--border);
@@ -733,7 +739,7 @@ input[type="checkbox"] {
     background: var(--surface-secondary);
     border: 1px solid var(--border);
     border-radius: 10px;
-    box-shadow: 0 16px 30px #0005;
+    box-shadow: var(--shadow-popover);
   }
   .app-navigation.is-open {
     display: grid;

@@ -1,0 +1,153 @@
+/* Shared interaction layer, after screen styles and before print overrides.
+   Native controls retain platform keyboard, validation, and picker behavior. */
+@media screen {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
+  select,
+  textarea {
+    min-height: var(--control-height);
+    border: 1px solid var(--border-control);
+    border-radius: var(--radius-control);
+    background-color: var(--surface);
+    color: var(--text);
+    padding: 10px 12px;
+    font: inherit;
+    line-height: 1.5;
+    box-shadow: inset 0 1px 2px rgb(32 44 38 / 3%);
+    max-width: 100%;
+    min-width: 0;
+  }
+  textarea { resize: vertical; }
+  select:not([multiple]):not([size]) {
+    appearance: none;
+    padding-inline-end: 38px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2356685c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+  select[multiple], select[size] { min-height: 44px; }
+  input:is([type="date"], [type="time"], [type="datetime-local"]) {
+    font-variant-numeric: tabular-nums;
+  }
+  input::-webkit-date-and-time-value { text-align: start; }
+  input::-webkit-calendar-picker-indicator { cursor: pointer; padding: 3px; }
+  input:is([type="checkbox"], [type="radio"]) {
+    appearance: auto;
+    width: 18px;
+    height: 18px;
+    min-height: 18px;
+    padding: 0;
+    margin: 3px;
+    accent-color: var(--accent);
+    flex: 0 0 auto;
+    vertical-align: middle;
+  }
+  :is(input, select, textarea):hover:not(:disabled):not([readonly]) {
+    border-color: var(--accent);
+  }
+  :is(input, select, textarea)[aria-invalid="true"] {
+    border-color: var(--danger);
+  }
+  :is(input, select, textarea):disabled,
+  fieldset:disabled :is(input, select, textarea) {
+    background-color: var(--surface-secondary);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+    opacity: 1;
+  }
+  input[readonly], textarea[readonly] { background-color: var(--canvas); }
+  .button {
+    min-height: var(--control-height);
+    border-radius: var(--radius-control);
+    gap: 8px;
+    text-decoration: none;
+    font-weight: 650;
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--border-control);
+  }
+  .button:hover { text-decoration: none; }
+  .button:not(.primary):not(.danger):hover:not(:disabled) { background: var(--surface-secondary); border-color: var(--accent); }
+  .button.primary { box-shadow: 0 1px 2px rgb(32 44 38 / 10%); }
+  .button.primary:hover:not(:disabled) { background: var(--accent-hover); }
+  .button.secondary { background: var(--surface); color: var(--text); border-color: var(--border-control); }
+  .button.secondary:hover:not(:disabled) { background: var(--surface-secondary); border-color: var(--accent); }
+  .button.danger:hover:not(:disabled) { background: #f5dfe2; border-color: var(--danger); }
+  button:disabled, .button[aria-disabled="true"] { cursor: not-allowed; opacity: .6; }
+  button[aria-busy="true"] { cursor: progress; }
+  .button[aria-busy="true"]::before {
+    content: "";
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: control-spin .8s linear infinite;
+  }
+  :is(.workspace-menu, .product-switcher) > summary {
+    min-height: 44px;
+    border-radius: var(--radius-control);
+  }
+  .workspace-menu > summary { padding: 5px 8px; }
+  :is(.workspace-menu, .product-switcher) > summary:hover,
+  .workspace-menu[open] > summary { background-color: var(--surface-secondary); }
+  .workspace-menu > div, .product-popover,
+  .navigation-collapsed .app-navigation.is-open {
+    box-shadow: var(--shadow-popover);
+    border-radius: var(--radius-panel);
+  }
+  .workspace-menu > div {
+    top: calc(100% + 10px);
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 150px);
+    overflow-y: auto;
+  }
+  .workspace-menu a, .workspace-menu form button { min-height: 44px; }
+  .workspace-menu a:hover { text-decoration: none; }
+  dialog {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-popover);
+    color: var(--text);
+    background: var(--surface);
+    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+  }
+  dialog::backdrop { background: rgb(20 36 27 / 40%); }
+  .assignment-popover { border-top: 1px solid var(--border); }
+  .publish-review { border-radius: var(--radius-panel); }
+  .template-card > summary { min-height: 44px; cursor: pointer; }
+  .calendar-scroll { overscroll-behavior-x: contain; }
+  .schedule-table { font-variant-numeric: tabular-nums; }
+  .schedule-table thead th { background: var(--surface-secondary); font-weight: 650; }
+  .schedule-table tbody tr:focus-within td { background: var(--canvas); }
+  :is(button, a, input, select, textarea, summary):focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+  }
+  @media (max-width: 600px) {
+    .workspace-menu > summary { padding-inline: 0; gap: 6px; }
+    /* Avoid iOS zooming fields on focus. */
+    input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
+    .button { white-space: normal; text-align: center; }
+  }
+  .kiosk-card .kiosk-pin { font-size: 32px; }
+  @media (prefers-reduced-motion: no-preference) {
+    :is(.button, input, select, textarea, summary, .app-navigation a, .workspace-menu a, .product-popover a) {
+      transition: background-color var(--duration-ui) ease, border-color var(--duration-ui) ease, box-shadow var(--duration-ui) ease;
+    }
+    dialog[open], .product-switcher[open] .product-popover, .workspace-menu[open] > div {
+      animation: surface-enter var(--duration-ui) ease-out;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .button[aria-busy="true"]::before { animation: none; }
+  }
+  @media (forced-colors: active) {
+    select:not([multiple]):not([size]) { appearance: auto; background-image: none; }
+    .button { border: 1px solid ButtonText; }
+  }
+}
+@keyframes control-spin { to { transform: rotate(360deg); } }
+@keyframes surface-enter { from { transform: translateY(4px); } to { transform: translateY(0); } }
