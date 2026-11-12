@@ -1,3 +1,5 @@
+import { PageHeader, Card } from "@/app/ui/surfaces";
+import { ButtonLink } from "@/app/ui/button";
 import Link from "next/link";
 import { calendarEnabled } from "@/lib/calendar/token";
 import { calendarAction } from "./calendar/actions";
@@ -110,7 +112,7 @@ export default async function Page({
   return (
     <>
       <Frame workspace={{ id, role, name: org.name }}>
-        <div className="page-heading">
+        <PageHeader className="page-heading">
           <div>
             <p className="eyebrow">{org.name} · PUBLISHED SHIFTS</p>
             <h1>{team ? "Team schedule" : "My Schedule"}</h1>
@@ -118,7 +120,7 @@ export default async function Page({
               {timezone} · Your team’s latest published version
             </p>
           </div>
-        </div>
+        </PageHeader>
         <nav className="schedule-tabs" aria-label="Published schedule view">
           <Link
             aria-current={!team ? "page" : undefined}
@@ -139,7 +141,7 @@ export default async function Page({
           employee
           view={team ? "team" : "mine"}
         />
-        <section className="panel workspace-card">
+        <Card className="panel workspace-card">
           <div className="schedule-toolbar">
             <div>
               <span className="schedule-badge live">
@@ -194,9 +196,9 @@ export default async function Page({
               warning={168}
             />
           )}
-        </section>
+        </Card>
         {!team && (
-          <section className="panel workspace-card upcoming-shifts">
+          <Card className="panel workspace-card upcoming-shifts">
             <h2>Your upcoming shifts</h2>
             {!upcoming?.length ? (
               <p className="muted">
@@ -230,18 +232,18 @@ export default async function Page({
                     <p>{s.position_name}</p>
                     {s.notes && <p>{s.notes}</p>}
                     {new Date(s.starts_at).getTime() > Date.now() && (
-                      <Link
+                      <ButtonLink
                         className="button secondary"
                         href={`/workspaces/${id}/shift-requests?shift=${s.id}`}
                       >
                         Request Coverage or Swap
-                      </Link>
+                      </ButtonLink>
                     )}
                   </article>
                 ))}
               </div>
             )}
-          </section>
+          </Card>
         )}
         {!team && (
           <CalendarControls

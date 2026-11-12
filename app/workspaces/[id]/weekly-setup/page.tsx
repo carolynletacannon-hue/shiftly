@@ -1,3 +1,4 @@
+import { PageHeader } from "@/app/ui/surfaces";
 import { Frame } from "@/app/components";
 import { requireWorkspace } from "@/lib/auth";
 import { validWeek } from "@/lib/scheduling/time";
@@ -42,7 +43,7 @@ export default async function Page({
   );
   return (
     <Frame workspace={{ id, role, name: org.data.name }}>
-      <div className="page-heading">
+      <PageHeader className="page-heading">
         <div>
           <p className="eyebrow">SET IT UP ONCE · USE IT EVERY WEEK</p>
           <h1>Set Up Weekly Schedule</h1>
@@ -50,7 +51,7 @@ export default async function Page({
             Choose shifts, check the days, and tell us how many people you need.
           </p>
         </div>
-      </div>
+      </PageHeader>
       <WeeklyWizard
         key={version.data?.revision ?? 0}
         org={id}

@@ -1,3 +1,5 @@
+import { Card } from "@/app/ui/surfaces";
+import { Button } from "@/app/ui/button";
 import { Frame, Input, Message } from "../components";
 import { resetPassword } from "../auth/actions";
 import { requireUser } from "@/lib/auth";
@@ -10,7 +12,7 @@ export default async function Page({
   const params = await searchParams;
   return (
     <Frame>
-      <section className="panel auth-card">
+      <Card className="panel auth-card">
         <h1>Choose a new password</h1>
         <Message text={params.message} />
         <form action={resetPassword} className="account-form">
@@ -19,9 +21,9 @@ export default async function Page({
             label="New password (12+ characters)"
             type="password"
           />
-          <button className="button primary">Update password</button>
+          <Button className="button primary">Update password</Button>
         </form>
-      </section>
+      </Card>
     </Frame>
   );
 }

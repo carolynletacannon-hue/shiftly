@@ -1,3 +1,5 @@
+import { ButtonLink, Button } from "@/app/ui/button";
+import { DatePicker } from "@/app/ui/date-picker";
 import Link from "next/link";
 import { addDays } from "./time";
 export function WeekNavigation({
@@ -16,31 +18,31 @@ export function WeekNavigation({
   const base = `/workspaces/${id}/${employee ? "my-schedule" : "schedule"}`;
   return (
     <nav className="week-picker" aria-label="Schedule week">
-      <Link
+      <ButtonLink
         className="button secondary"
         href={`${base}?week=${addDays(week, -7)}&view=${view}`}
       >
         ← Previous
-      </Link>
+      </ButtonLink>
       {todayWeek && week !== todayWeek && (
-        <Link className="button secondary" href={`${base}?week=${todayWeek}&view=${view}`}>
+        <ButtonLink className="button secondary" href={`${base}?week=${todayWeek}&view=${view}`}>
           Today
-        </Link>
+        </ButtonLink>
       )}
       <form key={week} action={base}>
         <label>
           Week containing
-          <input type="date" name="week" defaultValue={week} required />
+          <DatePicker name="week" defaultValue={week} required />
         </label>
         {employee && <input type="hidden" name="view" value={view} />}
-        <button className="button secondary">Go</button>
+        <Button className="button secondary">Go</Button>
       </form>
-      <Link
+      <ButtonLink
         className="button secondary"
         href={`${base}?week=${addDays(week, 7)}&view=${view}`}
       >
         Next →
-      </Link>
+      </ButtonLink>
     </nav>
   );
 }

@@ -1,5 +1,7 @@
 # UI modernization audit and review
 
+Historical audit for the first pass. The component redesign and before/after screenshots are documented in [ui-redesign](ui-redesign/README.md).
+
 Scope: existing light/sage branding, page structure, routes and native form semantics. No dependencies, schemas, migrations, permission checks or business actions changed.
 
 ## Audit and implementation

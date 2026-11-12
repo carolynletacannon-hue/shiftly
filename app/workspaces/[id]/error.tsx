@@ -1,23 +1,24 @@
 "use client";
-import Link from "next/link";
+import { Card } from "@/app/ui/surfaces";
+import { Button, ButtonLink } from "@/app/ui/button";
 export default function Error({ reset }: { reset: () => void }) {
   return (
     <main className="account-page">
-      <section className="panel workspace-card" role="alert">
+      <Card className="panel workspace-card" role="alert">
         <h1>We couldn’t load this page</h1>
         <p>
           Your changes may already have saved. Refresh and check before trying
           an action again.
         </p>
         <div className="calendar-actions">
-          <button className="button primary" onClick={reset}>
+          <Button className="button primary" onClick={reset}>
             Try again
-          </button>
-          <Link className="button secondary" href="/workspaces">
+          </Button>
+          <ButtonLink className="button secondary" href="/workspaces">
             Your workplaces
-          </Link>
+          </ButtonLink>
         </div>
-      </section>
+      </Card>
     </main>
   );
 }

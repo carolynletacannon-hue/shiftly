@@ -1,3 +1,4 @@
+import { Card } from "@/app/ui/surfaces";
 import { SubmitButton } from "../submit-button";
 import { Frame, Input, Message } from "../components";
 import { requireUser } from "@/lib/auth";
@@ -10,7 +11,7 @@ export default async function Page({
   await requireUser();
   return (
     <Frame>
-      <section className="panel auth-card">
+      <Card className="panel auth-card">
         <p className="eyebrow">A NEW BEGINNING</p>
         <h1>Create your workspace</h1>
         <p>
@@ -59,7 +60,7 @@ export default async function Page({
             Create workspace
           </SubmitButton>
         </form>
-      </section>
+      </Card>
     </Frame>
   );
 }

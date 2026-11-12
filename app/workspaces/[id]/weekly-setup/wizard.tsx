@@ -1,4 +1,8 @@
 "use client";
+import { Checkbox } from "@/app/ui/checkbox";
+import { Card, PageHeader } from "@/app/ui/surfaces";
+import { Button } from "@/app/ui/button";
+import { Select } from "@/app/ui/select";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type {
@@ -139,20 +143,20 @@ export function WeeklyWizard({
     >
       <fieldset disabled={pending}>
         {rows.map((r, index) => (
-          <section className="panel workspace-card" key={r.key}>
-            <div className="page-heading">
+          <Card className="panel workspace-card" key={r.key}>
+            <PageHeader className="page-heading">
               <h2>{r.name || `Shift ${index + 1}`}</h2>
-              <button
+              <Button
                 type="button"
                 className="button secondary"
                 onClick={() => setRows(rows.filter((row) => row.key !== r.key))}
               >
                 Remove shift
-              </button>
-            </div>
+              </Button>
+            </PageHeader>
             <label>
               Shift template
-              <select
+              <Select
                 value={r.template_id}
                 onChange={(e) => {
                   const t = templates.find((t) => t.id === e.target.value);
@@ -178,7 +182,7 @@ export function WeeklyWizard({
                     {t.end_time.slice(0, 5)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             {!r.template_id && (
               <div className="setup-times">
@@ -214,8 +218,7 @@ export function WeeklyWizard({
                   />
                 </label>
                 <label className="check-label">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={r.end_next_day}
                     onChange={(e) =>
                       update(r.key, { end_next_day: e.target.checked })
@@ -227,17 +230,16 @@ export function WeeklyWizard({
             )}
             <fieldset className="weekday-options">
               <legend>Which days?</legend>
-              <button
+              <Button
                 type="button"
                 className="button secondary"
                 onClick={() => update(r.key, { days: [0, 1, 2, 3, 4, 5, 6] })}
               >
                 Every day
-              </button>
+              </Button>
               {weekdays.map((name, day) => (
                 <label className="check-label" key={name}>
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={r.days.includes(day)}
                     onChange={(e) =>
                       update(r.key, {
@@ -264,9 +266,9 @@ export function WeeklyWizard({
                 }
               />
             </label>
-          </section>
+          </Card>
         ))}
-        <button
+        <Button
           type="button"
           className="button secondary"
           onClick={() =>
@@ -287,14 +289,14 @@ export function WeeklyWizard({
           }
         >
           + Add another shift
-        </button>
-        <section className="panel workspace-card">
+        </Button>
+        <Card className="panel workspace-card">
           <h2>{count} shift slots each week</h2>
           <label>Apply setup
-            <select value={applyToWeek ? "current" : "future"} onChange={(e) => setApplyToWeek(e.target.value === "current")}>
+            <Select value={applyToWeek ? "current" : "future"} onChange={(e) => setApplyToWeek(e.target.value === "current")}>
               <option value="current">Apply to this week</option>
               <option value="future">Future weeks only</option>
-            </select>
+            </Select>
           </label>
           <p>
             Future weekly drafts will include these shifts automatically. Applying to this week preserves assignments. Published weeks require future weeks only.
@@ -310,13 +312,13 @@ export function WeeklyWizard({
               {error}
             </p>
           )}
-          <button
+          <Button
             className="button primary"
             disabled={rows.some((r) => !r.days.length) || count > 300}
           >
             {pending ? "Saving…" : "Save & open calendar"}
-          </button>
-        </section>
+          </Button>
+        </Card>
       </fieldset>
     </form>
   );

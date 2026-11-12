@@ -1,3 +1,4 @@
+import { PageHeader } from "@/app/ui/surfaces";
 import { Frame } from "@/app/components";
 import { requireWorkspace } from "@/lib/auth";
 import type { TimeOff, Availability } from "@/lib/time-off/types";
@@ -57,7 +58,7 @@ export default async function Page({
     throw Error("Unable to check scheduled assignments");
   return (
     <Frame workspace={{ id, role, name: org.name }}>
-      <div className="page-heading">
+      <PageHeader className="page-heading">
         <div>
           <p className="eyebrow">{org.name}</p>
           <h1>{manager ? "Time-Off Requests" : "My time off"}</h1>
@@ -66,7 +67,7 @@ export default async function Page({
             managers.
           </p>
         </div>
-      </div>
+      </PageHeader>
       <TimeOffScreen
         org={id}
         timezone={org.timezone}

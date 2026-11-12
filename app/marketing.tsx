@@ -1,3 +1,4 @@
+import { ButtonLink } from "@/app/ui/button";
 import Link from "next/link";
 import { Brand } from "./brand";
 
@@ -51,9 +52,9 @@ export function MarketingHome({ signedIn = false }: { signedIn?: boolean }) {
           <Link href={signedIn ? "/workspaces" : "/login"}>
             {signedIn ? "Go to Dashboard" : "Sign In"}
           </Link>
-          <Link className="button primary" href={start}>
+          <ButtonLink className="button primary" href={start}>
             {label} <span aria-hidden="true">→</span>
-          </Link>
+          </ButtonLink>
         </nav>
         <details className="public-mobile">
           <summary>Menu</summary>
@@ -83,9 +84,9 @@ export function MarketingHome({ signedIn = false }: { signedIn?: boolean }) {
               keep your entire team on the same page — all in one simple place.
             </p>
             <div className="marketing-actions">
-              <Link className="button primary" href={start}>
+              <ButtonLink className="button primary" href={start}>
                 {label} <span aria-hidden="true">→</span>
-              </Link>
+              </ButtonLink>
               <a className="button secondary" href="#features">
                 Explore Features
               </a>
@@ -251,9 +252,9 @@ export function MarketingHome({ signedIn = false }: { signedIn?: boolean }) {
             <br />
             with a simpler schedule.
           </h2>
-          <Link className="button primary" href={start}>
+          <ButtonLink className="button primary" href={start}>
             {label} <span aria-hidden="true">→</span>
-          </Link>
+          </ButtonLink>
         </section>
       </main>
       <footer className="public-footer">

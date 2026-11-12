@@ -1,3 +1,6 @@
+import { SectionTitle, PageHeader, Card } from "@/app/ui/surfaces";
+import { Select } from "@/app/ui/select";
+import { Button } from "@/app/ui/button";
 import { requestAction } from "../shift-requests/actions";
 import { cookies } from "next/headers";
 import { Frame, Input, Message } from "@/app/components";
@@ -77,7 +80,7 @@ export default async function Page({
   }
   return (
     <Frame workspace={{ id, role, name: org.name }}>
-      <div className="page-heading">
+      <PageHeader className="page-heading">
         <div>
           <p className="eyebrow">WORKSPACE MANAGEMENT</p>
           <h1>{org.name}</h1>
@@ -85,14 +88,14 @@ export default async function Page({
             {role} · {org.timezone}
           </p>
         </div>
-      </div>
+      </PageHeader>
       <Message text={query.message} />
 
-      <div className="two-col">
-        <section className="panel workspace-card">
+      <div className="two-col ui-settings-grid">
+        <Card className="panel workspace-card">
           {admin && (
             <>
-              <h2>Shift Coverage</h2>
+              <SectionTitle icon="shield">Shift Coverage</SectionTitle>
               <form action={requestAction} className="account-form">
                 <input type="hidden" name="organization_id" value={id} />
                 <input type="hidden" name="command" value="policy" />
@@ -103,7 +106,7 @@ export default async function Page({
                 />
                 <label>
                   Shift swap and coverage approval policy
-                  <select
+                  <Select
                     name="require_manager"
                     defaultValue={String(
                       coveragePolicy?.require_manager ?? true,
@@ -115,17 +118,20 @@ export default async function Page({
                     <option value="false">
                       Allow employee-managed coverage
                     </option>
-                  </select>
+                  </Select>
                 </label>
                 <p>
                   Changing this setting never automatically approves pending
                   requests.
                 </p>
-                <button className="button primary">Save coverage policy</button>
+                <Button icon="check" className="button primary">
+                  Save coverage policy
+                </Button>
               </form>
             </>
           )}
-          <h2>Business settings</h2>
+          <div className="ui-settings-divider" />
+          <SectionTitle icon="settings">Business settings</SectionTitle>
           {role === "owner" ? (
             <form className="account-form" action={updateWorkspace}>
               <input type="hidden" name="organization_id" value={id} />
@@ -141,15 +147,17 @@ export default async function Page({
               />
               <label>
                 Week starts on
-                <select
+                <Select
                   name="week_starts_on"
                   defaultValue={org.settings.week_starts_on ?? 0}
                 >
                   <option value="0">Sunday</option>
                   <option value="1">Monday</option>
-                </select>
+                </Select>
               </label>
-              <button className="button primary">Save settings</button>
+              <Button icon="check" className="button primary">
+                Save settings
+              </Button>
             </form>
           ) : (
             <p>
@@ -157,15 +165,16 @@ export default async function Page({
               {org.settings.week_starts_on === 1 ? "Monday" : "Sunday"}.
             </p>
           )}
-          <h2>Positions</h2>
+          <div className="ui-settings-divider" />
+          <SectionTitle icon="layers">Positions</SectionTitle>
           <p>
             {positions?.length
               ? positions.map((p) => p.name).join(", ")
               : "No positions configured yet."}
           </p>
-        </section>
-        <section className="panel workspace-card">
-          <h2>Team members</h2>
+        </Card>
+        <Card className="panel workspace-card">
+          <SectionTitle icon="users">Team members</SectionTitle>
           {members?.map((m) => (
             <article className="member-row" key={m.user_id}>
               <strong>
@@ -182,21 +191,21 @@ export default async function Page({
                     <input type="hidden" name="user_id" value={m.user_id} />
                     <label>
                       Role
-                      <select name="role" defaultValue={m.role}>
+                      <Select name="role" defaultValue={m.role}>
                         <option value="employee">Employee</option>
                         <option value="manager">Manager</option>
-                      </select>
+                      </Select>
                     </label>
-                    <button className="button secondary">Update role</button>
+                    <Button className="button secondary">Update role</Button>
                   </form>
                 )}
             </article>
           ))}
-        </section>
+        </Card>
       </div>
       {admin && (
-        <section className="panel workspace-card invitation-panel">
-          <h2>Invite a teammate</h2>
+        <Card className="panel workspace-card invitation-panel">
+          <SectionTitle icon="mail">Invite a teammate</SectionTitle>
           <p>
             Send a private invitation to your teammate. Invitations expire after
             seven days. You can also copy the link to share it manually.
@@ -214,12 +223,14 @@ export default async function Page({
             <Input name="email" type="email" label="Employee email" />
             <label>
               Role
-              <select name="role">
+              <Select name="role">
                 <option value="employee">Employee</option>
                 {role === "owner" && <option value="manager">Manager</option>}
-              </select>
+              </Select>
             </label>
-            <button className="button primary">Send Invitation</button>
+            <Button icon="mail" className="button primary">
+              Send Invitation
+            </Button>
           </form>
           <h3>Invitations</h3>
           {invitationsError && (
@@ -246,21 +257,21 @@ export default async function Page({
                   <form action={resend}>
                     <input type="hidden" name="organization_id" value={id} />
                     <input type="hidden" name="invitation_id" value={i.id} />
-                    <button className="button secondary">
+                    <Button className="button secondary">
                       Resend invitation
-                    </button>
+                    </Button>
                   </form>
                 )}
               {!i.accepted_at && !i.revoked_at && (
                 <form action={revoke}>
                   <input type="hidden" name="organization_id" value={id} />
                   <input type="hidden" name="invitation_id" value={i.id} />
-                  <button className="button secondary">Revoke</button>
+                  <Button className="button secondary">Revoke</Button>
                 </form>
               )}
             </article>
           ))}
-        </section>
+        </Card>
       )}
     </Frame>
   );

@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/app/ui/button";
 import { useEffect, useRef, useState } from "react";
 
 export function CopyInvitation({ link }: { link: string }) {
@@ -22,7 +23,7 @@ export function CopyInvitation({ link }: { link: string }) {
     <label>Copy this invitation link now (shown for two minutes)
       <input ref={input} readOnly defaultValue={link} aria-label="Invitation link" />
     </label>
-    <button type="button" className="button secondary" onClick={copy}>Copy invitation link</button>
+    <Button icon="copy" type="button" className="button secondary" onClick={copy}>Copy invitation link</Button>
     <p role="status">{message}</p>
   </div>;
 }

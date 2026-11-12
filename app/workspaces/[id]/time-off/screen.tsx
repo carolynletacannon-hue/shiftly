@@ -1,4 +1,9 @@
 "use client";
+import { Checkbox } from "@/app/ui/checkbox";
+import { Button } from "@/app/ui/button";
+import { Card } from "@/app/ui/surfaces";
+import { Select } from "@/app/ui/select";
+import { DatePicker } from "@/app/ui/date-picker";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Availability, TimeOff } from "@/lib/time-off/types";
@@ -118,51 +123,51 @@ export function TimeOffScreen({
           <div className="schedule-tools">
             {manager && r.status === "pending" && (
               <>
-                <button
+                <Button aria-busy={pending}
                   className="button primary"
                   disabled={pending}
                   onClick={() => run("approve", { id: r.id })}
                 >
                   Approve
-                </button>
-                <button
+                </Button>
+                <Button aria-busy={pending}
                   className="button secondary"
                   disabled={pending}
                   onClick={() => run("deny", { id: r.id })}
                 >
                   Deny
-                </button>
+                </Button>
               </>
             )}
             {r.employee_id === ownId && r.status === "pending" && (
-              <button
+              <Button aria-busy={pending}
                 className="button secondary"
                 disabled={pending}
                 onClick={() => run("cancel", { id: r.id })}
               >
                 Cancel request
-              </button>
+              </Button>
             )}
             {manager && r.status === "approved" && !employee?.placeholder && (
-              <button
+              <Button aria-busy={pending}
                 className="button secondary"
                 disabled={pending}
                 onClick={() => run("revoke", { id: r.id })}
               >
                 Cancel approved time off
-              </button>
+              </Button>
             )}
             {manager &&
               employee?.placeholder &&
               !employee.archived &&
               r.status === "approved" && (
-                <button
+                <Button aria-busy={pending}
                   className="button secondary"
                   disabled={pending}
                   onClick={() => run("remove_manual", { id: r.id })}
                 >
                   Remove manual time off
-                </button>
+                </Button>
               )}
           </div>
         </article>
@@ -183,17 +188,17 @@ export function TimeOffScreen({
         )}
       </div>
       {manager && (
-        <section className="panel workspace-card">
+        <Card className="panel workspace-card">
           <h2>Pending requests ({waiting.length})</h2>
           {waiting.length ? (
             <div className="time-off-list">{cards(waiting)}</div>
           ) : (
             <p className="muted">No requests waiting for review.</p>
           )}
-        </section>
+        </Card>
       )}
       {!manager && (
-        <section className="panel workspace-card">
+        <Card className="panel workspace-card">
           <h2>Request time off</h2>
           {ownId ? (
             <RequestForm
@@ -207,7 +212,7 @@ export function TimeOffScreen({
               Your manager needs to link your account to an employee record.
             </p>
           )}
-        </section>
+        </Card>
       )}
       {manager && (
         <details className="panel workspace-card">
@@ -232,7 +237,7 @@ export function TimeOffScreen({
           />
         </details>
       )}
-      <section className="panel workspace-card">
+      <Card className="panel workspace-card">
         <h2>{manager ? "Request history" : "My requests"}</h2>
         <div className="time-off-list">
           {cards(requests.filter((r) => !manager || r.status !== "pending"))}
@@ -240,7 +245,7 @@ export function TimeOffScreen({
         {!requests.some((r) => !manager || r.status !== "pending") && (
           <p className="muted">No requests yet.</p>
         )}
-      </section>
+      </Card>
       {ownId && (
         <details className="panel workspace-card">
           <summary>My weekly availability</summary>
@@ -302,7 +307,7 @@ function RequestForm({
         ) : (
           <label>
             Employee
-            <select name="employee_id" required defaultValue="">
+            <Select name="employee_id" required defaultValue="">
               <option value="" disabled>
                 Choose employee
               </option>
@@ -311,7 +316,7 @@ function RequestForm({
                   {e.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         )}
         {employees && !employees.length && (
@@ -321,8 +326,7 @@ function RequestForm({
         )}
         <label>
           First day
-          <input
-            type="date"
+          <DatePicker
             name="start_date"
             required
             value={first}
@@ -334,8 +338,7 @@ function RequestForm({
         </label>
         <label>
           Last day (same date for one day)
-          <input
-            type="date"
+          <DatePicker
             name="end_date"
             required
             min={first || undefined}
@@ -344,8 +347,7 @@ function RequestForm({
           />
         </label>
         <label className="check-label">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={full}
             onChange={(e) => setFull(e.target.checked)}
           />
@@ -370,11 +372,11 @@ function RequestForm({
               {["start", "end"].map((boundary) => (
                 <label key={boundary}>
                   {boundary === "start" ? "Start" : "End"} repeated hour
-                  <select name={`${boundary}_choice`} defaultValue="reject">
+                  <Select name={`${boundary}_choice`} defaultValue="reject">
                     <option value="reject">Ask if ambiguous</option>
                     <option value="earlier">Earlier occurrence</option>
                     <option value="later">Later occurrence</option>
-                  </select>
+                  </Select>
                 </label>
               ))}
             </details>
@@ -384,9 +386,9 @@ function RequestForm({
           Note (optional, visible to your managers)
           <textarea name="notes" rows={2} maxLength={1000} />
         </label>
-        <button className="button primary">
+        <Button className="button primary">
           {employees ? "Record approved time off" : "Submit request"}
-        </button>
+        </Button>
       </fieldset>
     </form>
   );
@@ -441,7 +443,7 @@ function AvailabilityForm({
           <div className="availability-row" key={day}>
             <label>
               {weekdays[day]}
-              <select
+              <Select
                 value={rule.kind}
                 onChange={(e) =>
                   setRules(
@@ -454,7 +456,7 @@ function AvailabilityForm({
                 <option value="any">No preference</option>
                 <option value="unavailable">Unavailable</option>
                 <option value="window">Available between</option>
-              </select>
+              </Select>
             </label>
             {rule.kind === "window" && (
               <>
@@ -493,7 +495,7 @@ function AvailabilityForm({
             )}
           </div>
         ))}
-        <button className="button primary">Save availability</button>
+        <Button icon="check" className="button primary">Save availability</Button>
       </fieldset>
     </form>
   );
