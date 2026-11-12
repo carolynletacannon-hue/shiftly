@@ -1,8 +1,6 @@
 "use client";
-import { ConfirmForm } from "@/app/ui/confirmation-dialog";
-import { Button } from "@/app/ui/button";
+import { EmployeeAccordion } from "./accordion";
 import Link from "next/link";
-import { manageEmployee } from "./actions";
 export type EmployeeStatus = {
   ok: boolean;
   blockers: { kind: string; id?: string; message: string }[];
@@ -18,44 +16,14 @@ export function LifecycleControls({
   status: EmployeeStatus;
 }) {
   const archived = !!employee.archived_at;
-  function action(
-    command: "archive" | "restore" | "delete",
-    label: string,
-    disabled: boolean,
-  ) {
-    const explanation =
-      command === "archive"
-        ? "Archive this employee? Their workspace access and outstanding invitations will be revoked. Scheduling history will be preserved."
-        : command === "restore"
-          ? "Restore this employee for scheduling? Account access stays revoked until an authorized new invitation is accepted."
-          : "Permanently delete this unused employee? This cannot be undone.";
-    return (
-      <ConfirmForm
-        title={label}
-        description={`${employee.display_name}: ${explanation}`}
-        confirmLabel={label}
-        action={manageEmployee}
-      >
-        <input type="hidden" name="organization_id" value={org} />
-        <input type="hidden" name="employee_id" value={employee.id} />
-        <input type="hidden" name="command" value={command} />
-        <input type="hidden" name="confirmed" value="yes" />
-        <Button
-          className={`button ${command === "restore" ? "secondary" : "danger"}`}
-          disabled={disabled}
-        >
-          {label}
-        </Button>
-      </ConfirmForm>
-    );
-  }
   return (
     <div className="employee-lifecycle">
       {!archived && status.blockers.length > 0 && (
-        <details>
-          <summary>
-            Resolve {status.blockers.length} item(s) before archiving
-          </summary>
+        <EmployeeAccordion
+          title={`Resolve ${status.blockers.length} item(s) before archiving`}
+          icon="shield"
+          warning
+        >
           <ul>
             {status.blockers.map((blocker, i) => (
               <li key={i}>
@@ -70,21 +38,13 @@ export function LifecycleControls({
               </li>
             ))}
           </ul>
-        </details>
+        </EmployeeAccordion>
       )}
-      <div className="schedule-tools">
-        {archived
-          ? action("restore", "Restore employee", false)
-          : action("archive", "Archive employee", status.blockers.length > 0)}
-        {action(
-          "delete",
-          "Permanently delete",
-          status.delete_reasons.length > 0,
-        )}
-      </div>
       {status.delete_reasons.length > 0 && (
-        <details>
-          <summary>Why permanent deletion is unavailable</summary>
+        <EmployeeAccordion
+          title="Why permanent deletion is unavailable"
+          icon="shield"
+        >
           <p>
             History and related records must be preserved. Archive this employee
             to remove them from the active roster.
@@ -94,7 +54,7 @@ export function LifecycleControls({
               <li key={reason}>{reason}</li>
             ))}
           </ul>
-        </details>
+        </EmployeeAccordion>
       )}
     </div>
   );

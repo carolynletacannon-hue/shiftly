@@ -330,6 +330,12 @@ fs.mkdirSync(dir, { recursive: true });
       ]);
       await page.goto(`http://localhost:3100/workspaces/${org}/employees`);
       await page
+        .getByRole("button", {
+          name: "Actions for Synthetic UI Member",
+          exact: true,
+        })
+        .click();
+      await page
         .getByRole("button", { name: "Archive employee", exact: true })
         .click();
       const archive = page.getByRole("alertdialog", {
@@ -349,6 +355,12 @@ fs.mkdirSync(dir, { recursive: true });
         "cancellation cannot submit the form",
       );
       await page
+        .getByRole("button", {
+          name: "Actions for Synthetic UI Member",
+          exact: true,
+        })
+        .click();
+      await page
         .getByRole("button", { name: "Archive employee", exact: true })
         .click();
       await archive
@@ -361,8 +373,15 @@ fs.mkdirSync(dir, { recursive: true });
         "confirmation submits the original form exactly once",
       );
       await page
+        .getByRole("button", {
+          name: "Actions for Synthetic UI Member",
+          exact: true,
+        })
+        .click();
+      await page
         .getByRole("button", { name: "Restore employee", exact: true })
         .waitFor();
+      await page.keyboard.press("Escape");
       setEmployees([]);
       const fallback = await browser.newContext({ javaScriptEnabled: false });
       await fallback.addCookies([

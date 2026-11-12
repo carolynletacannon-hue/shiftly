@@ -25,6 +25,8 @@ const user = (id) => ({
 });
 const requests = [];
 let fixtureEmployees = [];
+let fixtureStatuses = {};
+let fixtureInvitations = [];
 const employeeCommands = [];
 const fixture = createServer((req, res) => {
   const url = new URL(req.url, "http://localhost");
@@ -44,14 +46,27 @@ const fixture = createServer((req, res) => {
     let body = "";
     req.on("data", (chunk) => (body += chunk));
     req.on("end", () => {
-      const command = JSON.parse(body).command;
+      const { command, employee: target } = JSON.parse(body);
       employeeCommands.push(command);
       if (command === "archive")
-        fixtureEmployees = fixtureEmployees.map((e) => ({
-          ...e,
-          archived_at: "2026-01-05T12:00:00Z",
-        }));
-      res.end(JSON.stringify({ ok: true, blockers: [], delete_reasons: [] }));
+        fixtureEmployees = fixtureEmployees.map((e) =>
+          e.id === target ? { ...e, archived_at: "2026-01-05T12:00:00Z" } : e,
+        );
+      if (command === "restore")
+        fixtureEmployees = fixtureEmployees.map((e) =>
+          e.id === target ? { ...e, archived_at: null } : e,
+        );
+      if (command === "delete")
+        fixtureEmployees = fixtureEmployees.filter((e) => e.id !== target);
+      res.end(
+        JSON.stringify(
+          fixtureStatuses[target] || {
+            ok: true,
+            blockers: [],
+            delete_reasons: [],
+          },
+        ),
+      );
     });
     return;
   }
@@ -104,6 +119,7 @@ const fixture = createServer((req, res) => {
       },
     ];
   if (table === "employees" && id === owner) result = fixtureEmployees;
+  if (table === "invitations") result = fixtureInvitations;
   if (table === "notifications") result = { unread: 0 };
   if (req.method === "HEAD") res.setHeader("Content-Range", "*/0");
   if (single && !result.length) {
@@ -147,6 +163,12 @@ module.exports = {
   owner,
   employee,
   employeeCommands,
+  setInvitations: (invitations) => {
+    fixtureInvitations = invitations;
+  },
+  setStatuses: (statuses) => {
+    fixtureStatuses = statuses;
+  },
   setEmployees: (employees) => {
     fixtureEmployees = employees;
   },
