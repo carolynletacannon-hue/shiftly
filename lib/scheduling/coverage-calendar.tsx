@@ -1,4 +1,7 @@
 "use client";
+import { Select } from "@/app/ui/select";
+import { Button } from "@/app/ui/button";
+import { Checkbox } from "@/app/ui/checkbox";
 import { timeOffConflict, availabilityWarning } from "../time-off/conflicts";
 import type { TimeOff, Availability } from "../time-off/types";
 import { useState } from "react";
@@ -225,7 +228,7 @@ export function CoverageCalendar({
                         className="assignment-popover"
                         id={`assign-${group.id}`}
                         onKeyDown={(e) => {
-                          if (e.key === "Escape") setOpenId(null);
+                          if (e.key === "Escape" && !e.defaultPrevented) setOpenId(null);
                         }}
                       >
                         <p className="eyebrow">EMPLOYEE ASSIGNMENTS</p>
@@ -248,7 +251,7 @@ export function CoverageCalendar({
                         ))}
                         <label>
                           Add employee
-                          <select
+                          <Select
                             value={employeeId}
                             onChange={(e) => setEmployeeId(e.target.value)}
                           >
@@ -266,7 +269,7 @@ export function CoverageCalendar({
                                   {m.name}
                                 </option>
                               ))}
-                          </select>
+                          </Select>
                         </label>
                         {timeOffBlocked && (
                           <p className="inline-warning" role="alert">
@@ -296,7 +299,7 @@ export function CoverageCalendar({
                             allow extra employees.
                           </p>
                         )}
-                        <button
+                        <Button icon="plus"
                           type="button"
                           className="button primary"
                           disabled={
@@ -312,7 +315,7 @@ export function CoverageCalendar({
                           }}
                         >
                           Add employee
-                        </button>
+                        </Button>
                         <form
                           className="staffing-form"
                           key={`${group.id}:${group.required_count}:${group.allow_overstaffing}`}
@@ -339,26 +342,25 @@ export function CoverageCalendar({
                             />
                           </label>
                           <label className="check-label">
-                            <input
+                            <Checkbox
                               name="overstaffing"
-                              type="checkbox"
                               defaultChecked={group.allow_overstaffing}
                             />
                             Allow extra employees
                           </label>
-                          <button
+                          <Button icon="check"
                             className="button secondary"
                             disabled={pending}
                           >
                             Save staffing
-                          </button>
+                          </Button>
                         </form>
                         <p className="availability-note">
                           Availability preferences are advisory. Approved time
                           off blocks assignment. Changes stay private until
                           published.
                         </p>
-                        <button
+                        <Button
                           type="button"
                           className="button secondary"
                           onClick={() => {
@@ -367,7 +369,7 @@ export function CoverageCalendar({
                           }}
                         >
                           Edit shift details
-                        </button>
+                        </Button>
                         <button
                           type="button"
                           className="popover-close"

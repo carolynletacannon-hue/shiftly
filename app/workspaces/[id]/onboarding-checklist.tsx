@@ -1,4 +1,6 @@
 "use client";
+import { Button } from "@/app/ui/button";
+import { Card } from "@/app/ui/surfaces";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 export type Milestone = {
@@ -38,12 +40,12 @@ export function OnboardingChecklist({
   }
   if (dismissed)
     return (
-      <button className="button secondary" onClick={toggle}>
+      <Button className="button secondary" onClick={toggle}>
         Show getting-started checklist
-      </button>
+      </Button>
     );
   return (
-    <section className="panel dashboard-card" aria-labelledby="getting-started">
+    <Card className="panel dashboard-card ui-onboarding-card" aria-labelledby="getting-started">
       <h2 id="getting-started">Make yourself at home</h2>
       <p>
         {complete} of {steps.length} steps complete. Explore at your own pace —
@@ -70,9 +72,9 @@ export function OnboardingChecklist({
         Your schedule stays private until you choose Publish in the schedule
         editor.
       </p>
-      <button className="button secondary onboarding-dismiss" onClick={toggle}>
+      <Button className="button secondary onboarding-dismiss" onClick={toggle}>
         Skip for now
-      </button>
-    </section>
+      </Button>
+    </Card>
   );
 }

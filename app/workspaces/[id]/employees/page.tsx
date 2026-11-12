@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { PageHeader, Card } from "@/app/ui/surfaces";
+import { Button, ButtonLink } from "@/app/ui/button";
 import { LifecycleControls, type EmployeeStatus } from "./lifecycle-controls";
 import { Frame, Input, Message } from "@/app/components";
 import { requireWorkspace } from "@/lib/auth";
@@ -44,7 +45,7 @@ export default async function Page({
   );
   return (
     <Frame workspace={{ id, role, name: undefined }}>
-      <div className="page-heading">
+      <PageHeader className="page-heading">
         <div>
           <p className="eyebrow">
             {query.setup ? "STEP 2 OF 3 · YOUR TEAM" : "YOUR TEAM"}
@@ -55,22 +56,22 @@ export default async function Page({
             optional.
           </p>
         </div>
-      </div>
+      </PageHeader>
       <Message text={query.message} />
-      <section className="panel workspace-card">
+      <Card className="panel workspace-card">
         <h2>Add an employee</h2>
         <form action={saveEmployee} className="account-form">
           <input type="hidden" name="organization_id" value={id} />
           <input type="hidden" name="setup" value={query.setup || ""} />
           <Input name="display_name" label="Employee name" />
-          <button className="button primary">Add employee</button>
+          <Button icon="plus" className="button primary">Add employee</Button>
           <details>
             <summary>Contact information (optional)</summary>
             <Input name="email" type="email" label="Email" required={false} />
             <Input name="phone" label="Phone" required={false} />
           </details>
         </form>
-      </section>
+      </Card>
       <div className="employee-list">
         {roster.data
           ?.filter((employee) => !employee.archived_at)
@@ -90,7 +91,7 @@ export default async function Page({
                 Date.parse(i.expires_at) > Date.now(),
             );
             return (
-              <section className="panel workspace-card" key={employee.id}>
+              <Card className="panel workspace-card" key={employee.id}>
                 <h2>{employee.display_name}</h2>
                 <p className="schedule-badge">
                   {employee.user_id
@@ -122,7 +123,7 @@ export default async function Page({
                       required={false}
                       defaultValue={contact?.phone || ""}
                     />
-                    <button className="button secondary">Save employee</button>
+                    <Button icon="check" className="button secondary">Save employee</Button>
                   </form>
                 </details>
                 <LifecycleControls
@@ -152,17 +153,17 @@ export default async function Page({
                         label="Invitation email"
                         defaultValue={contact?.email || ""}
                       />
-                      <button className="button secondary">
+                      <Button icon="plus" className="button secondary">
                         Create invitation
-                      </button>
+                      </Button>
                     </form>
                   </details>
                 )}
-              </section>
+              </Card>
             );
           })}
       </div>
-      <section
+      <Card
         className="panel workspace-card"
         aria-labelledby="archived-employees"
       >
@@ -187,14 +188,14 @@ export default async function Page({
               />
             </article>
           ))}
-      </section>
+      </Card>
       {query.setup && (
-        <Link
+        <ButtonLink
           className="button primary"
           href={`/workspaces/${id}/weekly-setup?setup=1`}
         >
           Next: set up weekly shifts →
-        </Link>
+        </ButtonLink>
       )}
     </Frame>
   );

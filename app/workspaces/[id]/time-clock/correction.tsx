@@ -1,4 +1,6 @@
 "use client";
+import { Select } from "@/app/ui/select";
+import { Button } from "@/app/ui/button";
 import { useState } from "react";
 import { Temporal } from "@js-temporal/polyfill";
 import { ClockForm } from "./controls";
@@ -37,7 +39,7 @@ function Dst({
   return (
     <label>
       Repeated daylight saving hour
-      <select
+      <Select
         name={name}
         defaultValue={onChange ? undefined : value || "reject"}
         value={onChange ? value : undefined}
@@ -48,7 +50,7 @@ function Dst({
         <option value="reject">Automatic (reject ambiguous time)</option>
         <option value="earlier">First occurrence</option>
         <option value="later">Second occurrence</option>
-      </select>
+      </Select>
     </label>
   );
 }
@@ -102,7 +104,7 @@ export function Correction({
       {!card && (
         <label>
           Employee
-          <select
+          <Select
             name="employee_id"
             required
             value={employee}
@@ -113,7 +115,7 @@ export function Correction({
                 {e.display_name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       )}
       <label>
@@ -175,16 +177,16 @@ export function Correction({
             value={b.ends_at_choice}
             onChange={(v) => update(i, "ends_at_choice", v)}
           />
-          <button
+          <Button
             type="button"
             className="button secondary"
             onClick={() => setBreaks((rows) => rows.filter((_, n) => n !== i))}
           >
             Remove break {i + 1}
-          </button>
+          </Button>
         </fieldset>
       ))}
-      <button
+      <Button icon="plus"
         type="button"
         className="button secondary"
         disabled={breaks.length >= 30}
@@ -201,10 +203,10 @@ export function Correction({
         }
       >
         Add recorded break
-      </button>
+      </Button>
       <label>
         Related correction request
-        <select name="request_id" defaultValue={requestId} key={employee}>
+        <Select name="request_id" defaultValue={requestId} key={employee}>
           <option value="">No related request</option>
           {requests
             .filter(
@@ -217,7 +219,7 @@ export function Correction({
                 {r.reason.slice(0, 100)}
               </option>
             ))}
-        </select>
+        </Select>
       </label>
       <label>
         Reason

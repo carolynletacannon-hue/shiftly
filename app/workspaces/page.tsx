@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { PageHeader, Card } from "@/app/ui/surfaces";
+import { Button, ButtonLink } from "@/app/ui/button";
 import { cookies } from "next/headers";
 import { Frame, Message } from "../components";
 import { requireUser } from "@/lib/auth";
@@ -19,16 +20,16 @@ export default async function Page({
   const active = (await cookies()).get("shiftly-workspace")?.value;
   return (
     <Frame>
-      <div className="page-heading">
+      <PageHeader className="page-heading">
         <div>
           <p className="eyebrow">YOUR MEADOWMARK ACCOUNT</p>
           <h1>Choose your workplace</h1>
           <p className="subtitle">Signed in as {user.email}</p>
         </div>
         <form action={logout}>
-          <button className="button secondary">Sign out</button>
+          <Button className="button secondary">Sign out</Button>
         </form>
-      </div>
+      </PageHeader>
       <p className="shared-account-intro">
         One Meadowmark account for your workplaces and products. Choose a
         workplace to continue into Workforce. Your existing invitations and team
@@ -42,7 +43,7 @@ export default async function Page({
             timezone: string;
           };
           return (
-            <section className="panel workspace-card" key={m.organization_id}>
+            <Card className="panel workspace-card" key={m.organization_id}>
               <p className="eyebrow">MEADOWMARK WORKFORCE</p>
               <h2>{org.name}</h2>
               <p>
@@ -54,24 +55,24 @@ export default async function Page({
                   name="organization_id"
                   value={m.organization_id}
                 />
-                <button className="button primary">
+                <Button className="button primary">
                   {active === m.organization_id
                     ? "Continue to Workforce"
                     : "Open Workforce"}
-                </button>
+                </Button>
               </form>
-            </section>
+            </Card>
           );
         })}
-        <section className="panel workspace-card">
+        <Card className="panel workspace-card">
           <h2>
             {data?.length ? "Another workplace?" : "Let’s get your team set up"}
           </h2>
           <p>Create a workspace or open an invitation from your team.</p>
-          <Link className="button secondary" href="/onboarding">
+          <ButtonLink icon="plus" className="button secondary" href="/onboarding">
             Create workspace
-          </Link>
-        </section>
+          </ButtonLink>
+        </Card>
       </div>
     </Frame>
   );

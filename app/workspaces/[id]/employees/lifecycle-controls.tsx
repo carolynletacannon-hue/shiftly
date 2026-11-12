@@ -1,4 +1,6 @@
 "use client";
+import { ConfirmForm } from "@/app/ui/confirmation-dialog";
+import { Button } from "@/app/ui/button";
 import Link from "next/link";
 import { manageEmployee } from "./actions";
 export type EmployeeStatus = {
@@ -28,24 +30,23 @@ export function LifecycleControls({
           ? "Restore this employee for scheduling? Account access stays revoked until an authorized new invitation is accepted."
           : "Permanently delete this unused employee? This cannot be undone.";
     return (
-      <form
+      <ConfirmForm
+        title={label}
+        description={`${employee.display_name}: ${explanation}`}
+        confirmLabel={label}
         action={manageEmployee}
-        onSubmit={(event) => {
-          if (!window.confirm(`${employee.display_name}: ${explanation}`))
-            event.preventDefault();
-        }}
       >
         <input type="hidden" name="organization_id" value={org} />
         <input type="hidden" name="employee_id" value={employee.id} />
         <input type="hidden" name="command" value={command} />
         <input type="hidden" name="confirmed" value="yes" />
-        <button
+        <Button
           className={`button ${command === "restore" ? "secondary" : "danger"}`}
           disabled={disabled}
         >
           {label}
-        </button>
-      </form>
+        </Button>
+      </ConfirmForm>
     );
   }
   return (

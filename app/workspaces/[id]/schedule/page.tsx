@@ -1,3 +1,4 @@
+import { PageHeader } from "@/app/ui/surfaces";
 import { CopyWeek } from "./copy-week";
 import { Frame } from "@/app/components";
 import { requireWorkspace } from "@/lib/auth";
@@ -178,7 +179,7 @@ export async function SchedulingPage({
               : "Weekly setup saved for future weeks. This week is unchanged."}
           </p>
         )}
-        <div className="page-heading">
+        <PageHeader className="page-heading">
           <div>
             <p className="eyebrow">{org.name} · MANAGER SCHEDULE</p>
             <h1>
@@ -189,7 +190,7 @@ export async function SchedulingPage({
               ready.
             </p>
           </div>
-        </div>
+        </PageHeader>
         <div className="schedule-tools"><CopyWeek key={week} orgId={id} week={week} hoursWarning={settings?.weekly_hours_warning ?? 40} /></div>
         <WeekNavigation
           id={id}

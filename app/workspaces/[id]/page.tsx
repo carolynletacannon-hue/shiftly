@@ -1,3 +1,6 @@
+import { Icon } from "@/app/ui/icons";
+import { Card, PageHeader, MetricCard } from "@/app/ui/surfaces";
+import { ButtonLink } from "@/app/ui/button";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Frame, Message } from "@/app/components";
@@ -104,14 +107,26 @@ export default async function Page({
           : "Unpublished changes";
     content = (
       <>
-        <div className="dashboard-grid">
-          <section className="panel dashboard-card">
-            <h2>This week’s schedule</h2>
-            <strong>{status}</strong>
+        <div className="dashboard-grid ui-dashboard-grid">
+          <Card className="dashboard-card ui-schedule-summary">
+            <div className="ui-section-title">
+              <span className="ui-icon-tile">
+                <Icon name="calendar" />
+              </span>
+              <h2>This week’s schedule</h2>
+            </div>
+            <strong
+              className="ui-schedule-status"
+              data-state={status === "Published" ? "published" : "draft"}
+            >
+              {status}
+            </strong>
             <p>
               Week of {week} · {org.timezone}
             </p>
-            <Link href={`${base}/schedule`}>Open schedule →</Link>
+            <Link className="ui-card-action" href={`${base}/schedule`}>
+              Open schedule <Icon name="arrow-right" />
+            </Link>
             {nextDraft.data?.[0] && (
               <p>
                 Next unpublished week:{" "}
@@ -122,31 +137,37 @@ export default async function Page({
                 </Link>
               </p>
             )}
-          </section>
-          <section className="panel dashboard-card">
-            <h2>Time-off requests</h2>
-            <strong className="metric">{timeOff.count}</strong>
-            <p>
-              {timeOff.count ? "Waiting for review" : "You’re all caught up."}
-            </p>
-            <Link href={`${base}/time-off`}>Review time off →</Link>
-          </section>
-          <section className="panel dashboard-card">
-            <h2>Shift approvals</h2>
-            <strong className="metric">{requests.count}</strong>
-            <p>
-              {requests.count
+          </Card>
+          <MetricCard
+            title="Time-off requests"
+            value={timeOff.count}
+            description={
+              timeOff.count ? "Waiting for review" : "You’re all caught up."
+            }
+            href={`${base}/time-off`}
+            action="Review time off"
+            icon="sun"
+          />
+          <MetricCard
+            title="Shift approvals"
+            value={requests.count}
+            description={
+              requests.count
                 ? "Waiting for manager review"
-                : "No pending approvals."}
-            </p>
-            <Link href={`${base}/shift-requests`}>View shift requests →</Link>
-          </section>
-          <section className="panel dashboard-card">
-            <h2>Your team</h2>
-            <strong className="metric">{employees.count}</strong>
-            <p>Active employees</p>
-            <Link href={`${base}/employees`}>Manage employees →</Link>
-          </section>
+                : "No pending approvals."
+            }
+            href={`${base}/shift-requests`}
+            action="View shift requests"
+            icon="clock"
+          />
+          <MetricCard
+            title="Your team"
+            value={employees.count}
+            description="Active employees"
+            href={`${base}/employees`}
+            action="Manage employees"
+            icon="users"
+          />
         </div>
         <OnboardingChecklist
           workspace={id}
@@ -202,35 +223,41 @@ export default async function Page({
         ?.timezone || org.timezone;
     content = (
       <>
-        <section className="panel dashboard-card">
+        <Card className="panel dashboard-card">
           <h2>Welcome to your team</h2>
           <p>
             Your published shifts and requests live here. Draft schedules stay
             with your manager until they’re ready.
           </p>
           <div className="calendar-actions">
-            <Link className="button primary" href={`${base}/my-schedule`}>
+            <ButtonLink className="button primary" href={`${base}/my-schedule`}>
               My Schedule
-            </Link>
-            <Link className="button secondary" href={`${base}/time-off`}>
+            </ButtonLink>
+            <ButtonLink className="button secondary" href={`${base}/time-off`}>
               Time Off
-            </Link>
-            <Link className="button secondary" href={`${base}/shift-requests`}>
+            </ButtonLink>
+            <ButtonLink
+              className="button secondary"
+              href={`${base}/shift-requests`}
+            >
               Shift Requests
-            </Link>
-            <Link className="button secondary" href={`${base}/notifications`}>
+            </ButtonLink>
+            <ButtonLink
+              className="button secondary"
+              href={`${base}/notifications`}
+            >
               Notifications
-            </Link>
-            <Link
+            </ButtonLink>
+            <ButtonLink
               className="button secondary"
               href={`${base}/my-schedule#calendar-integration`}
             >
               Calendar Integration
-            </Link>
+            </ButtonLink>
           </div>
-        </section>
+        </Card>
         <div className="dashboard-grid">
-          <section className="panel dashboard-card">
+          <Card className="panel dashboard-card">
             <h2>Your next published shift</h2>
             {shift ? (
               <>
@@ -252,8 +279,8 @@ export default async function Page({
                 schedule when it’s ready.
               </p>
             )}
-          </section>
-          <section className="panel dashboard-card">
+          </Card>
+          <Card className="panel dashboard-card">
             <h2>Your recent time off</h2>
             {timeOff.data?.length ? (
               <ul>
@@ -266,8 +293,8 @@ export default async function Page({
             ) : (
               <p>No requests yet. Use Time Off when you need a day away.</p>
             )}
-          </section>
-          <section className="panel dashboard-card">
+          </Card>
+          <Card className="panel dashboard-card">
             <h2>Recent updates</h2>
             {notifications.data?.length ? (
               <ul>
@@ -284,14 +311,14 @@ export default async function Page({
             <Link href={`${base}/shift-requests`}>
               See coverage and swap opportunities →
             </Link>
-          </section>
+          </Card>
         </div>
       </>
     );
   }
   return (
     <Frame workspace={{ id, role, name: org.name }}>
-      <div className="page-heading">
+      <PageHeader className="page-heading">
         <div>
           <p className="eyebrow">{org.name}</p>
           <h1>
@@ -306,11 +333,15 @@ export default async function Page({
           </p>
         </div>
         {manager && (
-          <Link className="button primary" href={`${base}/schedule`}>
+          <ButtonLink
+            icon="plus"
+            className="button primary"
+            href={`${base}/schedule`}
+          >
             Create or edit schedule
-          </Link>
+          </ButtonLink>
         )}
-      </div>
+      </PageHeader>
       <Message text={query.message} />
       {content}
     </Frame>

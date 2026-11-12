@@ -1,3 +1,6 @@
+import { Button } from "@/app/ui/button";
+import { PageHeader, Card } from "@/app/ui/surfaces";
+import { Select } from "@/app/ui/select";
 import { availabilityWarning } from "@/lib/time-off/conflicts";
 import type { Availability } from "@/lib/time-off/types";
 import { Frame, Message } from "@/app/components";
@@ -103,7 +106,7 @@ export default async function Page({
   const action = (command: string, title: string, request_id: string) => (
     <form action={requestAction}>
       {hidden(command, { request_id })}
-      <button className="button secondary">{title}</button>
+      <Button className="button secondary">{title}</Button>
     </form>
   );
   const eligibleSwaps = new Set<string>();
@@ -132,7 +135,7 @@ export default async function Page({
   );
   return (
     <Frame workspace={{ id, role, name: org.data?.name }}>
-      <div className="page-heading">
+      <PageHeader className="page-heading">
         <div>
           <p className="eyebrow">{org.data?.name}</p>
           <h1>Shift Requests</h1>
@@ -143,20 +146,20 @@ export default async function Page({
             You remain responsible until the status is completed.
           </p>
         </div>
-      </div>
+      </PageHeader>
       <Message text={query.message} />
       {source && (
-        <section className="panel workspace-card">
+        <Card className="panel workspace-card">
           <h2>{label(source)}</h2>
           <form action={requestAction}>
             {hidden("coverage", { shift_id: source.id })}
-            <button className="button primary">Request Coverage</button>
+            <Button className="button primary">Request Coverage</Button>
           </form>
           <form action={requestAction} className="account-form">
             {hidden("swap", { shift_id: source.id })}
             <label>
               Trade for
-              <select name="other_shift_id" required>
+              <Select name="other_shift_id" required>
                 <option value="">Choose a coworker shift</option>
                 {shifts.data
                   ?.filter((s) => eligibleSwaps.has(s.id))
@@ -165,14 +168,14 @@ export default async function Page({
                       {label(s)}
                     </option>
                   ))}
-              </select>
+              </Select>
             </label>
-            <button className="button secondary">Request Swap</button>
+            <Button className="button secondary">Request Swap</Button>
           </form>
-        </section>
+        </Card>
       )}
       {manager && (
-        <section className="panel workspace-card">
+        <Card className="panel workspace-card">
           <h2>Placeholder coverage</h2>
           <p>
             Reassign a published placeholder shift now, or open it for employee
@@ -182,7 +185,7 @@ export default async function Page({
             <input type="hidden" name="organization_id" value={id} />
             <label>
               Placeholder shift
-              <select name="shift_id" required>
+              <Select name="shift_id" required>
                 {shifts.data
                   ?.filter((s) =>
                     roster.data?.some(
@@ -194,11 +197,11 @@ export default async function Page({
                       {label(s)}
                     </option>
                   ))}
-              </select>
+              </Select>
             </label>
             <label>
               Replacement
-              <select name="employee_id">
+              <Select name="employee_id">
                 {roster.data
                   ?.filter((e) => e.user_id)
                   .map((e) => (
@@ -206,18 +209,18 @@ export default async function Page({
                       {e.display_name}
                     </option>
                   ))}
-              </select>
+              </Select>
             </label>
-            <button className="button primary" name="command" value="manual">
+            <Button className="button primary" name="command" value="manual">
               Assign employee
-            </button>
-            <button className="button secondary" name="command" value="open">
+            </Button>
+            <Button className="button secondary" name="command" value="open">
               Ask for volunteers
-            </button>
+            </Button>
           </form>
-        </section>
+        </Card>
       )}
-      <section className="panel workspace-card">
+      <Card className="panel workspace-card">
         <h2>Open published shifts</h2>
         {shifts.data
           ?.filter((s) => !s.employee_id)
@@ -226,12 +229,12 @@ export default async function Page({
               <p>{label(s)}</p>
               <form action={requestAction}>
                 {hidden("open", { shift_id: s.id })}
-                <button className="button secondary">Request to cover</button>
+                <Button className="button secondary">Request to cover</Button>
               </form>
             </article>
           ))}
-      </section>
-      <section className="panel workspace-card">
+      </Card>
+      <Card className="panel workspace-card">
         <h2>
           {manager ? "Requests and volunteers" : "Requests and open coverage"}
         </h2>
@@ -316,7 +319,7 @@ export default async function Page({
             )}
           </article>
         ))}
-      </section>
+      </Card>
     </Frame>
   );
 }

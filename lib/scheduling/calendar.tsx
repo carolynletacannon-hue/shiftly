@@ -1,3 +1,4 @@
+import { Button } from "@/app/ui/button";
 import { groupShifts } from "./groups";
 import { addDays, hoursInWeek, localDate, shiftLabel } from "./time";
 import type { Member, Shift } from "./types";
@@ -97,13 +98,13 @@ export function ScheduleCalendar({
                   (s) => localDate(s.starts_at, timezone) === day,
                 ) && <p className="muted">No shifts</p>}
                 {onCell && (
-                  <button
+                  <Button
                     className="button secondary"
                     onClick={() => onCell(members[0]?.id || "", day)}
                     disabled={!members.length}
                   >
                     + Add shift
-                  </button>
+                  </Button>
                 )}
               </section>
             ))}

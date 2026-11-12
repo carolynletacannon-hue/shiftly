@@ -1,12 +1,14 @@
 "use client";
+import { Card } from "@/app/ui/surfaces";
+import { Button } from "@/app/ui/button";
 export default function ErrorPage({ reset }: { reset: () => void }) {
   return (
-    <section className="panel workspace-card">
+    <Card className="panel workspace-card">
       <h1>Notifications unavailable</h1>
       <p>We couldn’t load your notifications. Please try again.</p>
-      <button className="button secondary" onClick={reset}>
+      <Button className="button secondary" onClick={reset}>
         Try again
-      </button>
-    </section>
+      </Button>
+    </Card>
   );
 }

@@ -1,4 +1,8 @@
 "use client";
+import { Checkbox } from "@/app/ui/checkbox";
+import { Button } from "@/app/ui/button";
+import { DatePicker } from "@/app/ui/date-picker";
+import { Select } from "@/app/ui/select";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addDays, localDate, shiftLabel } from "@/lib/scheduling/time";
@@ -58,7 +62,7 @@ export function CopyWeek({
   }
   return (
     <>
-      <button
+      <Button icon="copy"
         className="button primary"
         onClick={() => {
           reset();
@@ -66,7 +70,7 @@ export function CopyWeek({
         }}
       >
         Copy Week
-      </button>
+      </Button>
       {notice && <p role="status">{notice}</p>}
       <dialog
         ref={dialog}
@@ -91,9 +95,8 @@ export function CopyWeek({
           <fieldset disabled={pending}>
             <label>
               Source week
-              <input
+              <DatePicker
                 required
-                type="date"
                 value={source}
                 onChange={(e) => {
                   setSource(e.target.value);
@@ -103,9 +106,8 @@ export function CopyWeek({
             </label>
             <label>
               Destination week
-              <input
+              <DatePicker
                 required
-                type="date"
                 value={destination}
                 onChange={(e) => {
                   setDestination(e.target.value);
@@ -115,7 +117,7 @@ export function CopyWeek({
             </label>
             <label>
               What to copy
-              <select
+              <Select
                 value={mode}
                 onChange={(e) => {
                   setMode(e.target.value);
@@ -130,11 +132,11 @@ export function CopyWeek({
                 <option value="assignments">
                   Employee assignments onto matching shifts
                 </option>
-              </select>
+              </Select>
             </label>
             <label>
               Destination draft
-              <select
+              <Select
                 value={strategy}
                 onChange={(e) => {
                   setStrategy(e.target.value);
@@ -145,7 +147,7 @@ export function CopyWeek({
                 {mode !== "assignments" && (
                   <option value="replace">Replace existing draft</option>
                 )}
-              </select>
+              </Select>
             </label>
             <p>
               Merge fills compatible open slots and keeps current assignments.
@@ -153,9 +155,9 @@ export function CopyWeek({
               existing assignments when merging; choose Replace for an
               unassigned draft.
             </p>
-            <button className="button primary" type="submit">
+            <Button className="button primary" type="submit">
               {pending ? "Checking…" : "Preview copy"}
-            </button>
+            </Button>
           </fieldset>
         </form>
         {error && (
@@ -224,8 +226,7 @@ export function CopyWeek({
             </details>
             {strategy === "replace" && (
               <label>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={confirmed}
                   onChange={(e) => setConfirmed(e.target.checked)}
                 />{" "}
@@ -233,7 +234,7 @@ export function CopyWeek({
                 existing draft slots and their assignments.
               </label>
             )}
-            <button
+            <Button aria-busy={pending}
               className="button primary"
               disabled={pending || (strategy === "replace" && !confirmed)}
               onClick={() => run(true)}
@@ -243,16 +244,16 @@ export function CopyWeek({
                 : strategy === "replace"
                   ? "Confirm replacement"
                   : "Confirm copy"}
-            </button>
+            </Button>
           </section>
         )}
-        <button
+        <Button aria-busy={pending}
           className="button secondary"
           disabled={pending}
           onClick={() => dialog.current?.close()}
         >
           Cancel
-        </button>
+        </Button>
       </dialog>
     </>
   );

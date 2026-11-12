@@ -195,8 +195,8 @@ function session(id) {
           assert.deepEqual(result, { overflow: false }, `${id} ${width}`);
         };
         await check();
-        if (id === owner && width <= 1280) assert.ok(await menu.isVisible());
-        if (width === 1800) assert.ok(!(await menu.isVisible()));
+        if (id === owner && width < 1100) assert.ok(await menu.isVisible());
+        if (width >= 1100) assert.ok(!(await menu.isVisible()));
         assert.equal(
           await nav
             .getByRole("link", {
