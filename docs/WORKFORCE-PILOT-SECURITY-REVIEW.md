@@ -13,21 +13,39 @@ This public document describes repository changes, synthetic test results and ge
 
 Object names and signatures in the migration and tests come from existing repository migrations. Test identities and records are synthetic. This document makes no assertions about any hosted project's configuration or contents.
 
+## Reconciliation with current main
+
+The security branch includes current `main`, preserving the premium interface,
+Employees cards/actions, responsive Schedule and Calendar views, and employee
+colors. The database test command retains both the security and employee-color
+suites. Browser regressions wait for rendered/persisted results rather than open
+development response streams or background-network idleness, and allow cold
+page compilation. The original security migration, framing restrictions and branch
+Vercel deployment gate are unchanged.
+
+Local upgrade tests cover both migration orders: security before employee colors,
+and security after colors already exists. The latter also verifies that saved
+employee colors and roster records survive unchanged. These are synthetic local
+checks, not assertions about a hosted database.
+
 ## Validation
 
 | Check | Result |
 | --- | --- |
-| `npm install` | Passed; no dependency changes required. |
-| `npm test` | 138 TypeScript and 15 TSX tests passed. |
-| `npm run test:postgres` | 20 tests passed on disposable native PostgreSQL. A final targeted catalog assertion also passed. |
+| `npm install` / clean `npm ci` | Passed; committed dependency versions unchanged. |
+| `npm test` | 141 TypeScript and 17 TSX tests passed. |
+| `npm run test:postgres` | 23 tests passed on disposable native PostgreSQL, including both security and employee-color suites. |
 | `npm run typecheck` | Passed. |
 | `npm run build` | Passed. |
 | Launch browser smoke | Passed, including response-header assertions. |
 | Navigation browser smoke | Passed for synthetic owner/employee sessions at six viewport widths. |
+| Premium redesign browser smoke | Passed desktop/mobile interaction, layout and accessibility checks. |
+| Employees browser smoke | Passed cards, keyboard/focus, confirmations and lifecycle actions. |
+| Weekly layouts and employee colors | Passed seven viewport widths, persistence, access denial, print and accessibility checks. |
 | `npm run test:payroll:browser` | Passed, including the nested kiosk browser suite. |
 | `npm audit` | Zero known vulnerabilities at the time of the check. |
 
-The new permission test covers two synthetic workplaces and owner, manager, employee, coworker, outsider and invitation identities. It tests actual SQL grants/RLS and RPC entrypoints, preserves published rows across the migration, verifies profile creation afterward, and populates distinct synthetic wage records before checking access. Browser fixtures exercise Next.js against a local mock service. They do not replace staging tests with real Auth sessions and PostgREST. Native testing used PostgreSQL 18.6; repeat staging checks on the intended deployment's database version.
+The new permission test covers two synthetic workplaces and owner, manager, employee, coworker, outsider and invitation identities. It tests actual SQL grants/RLS and RPC entrypoints, preserves published rows across the migration, verifies profile creation afterward, and populates distinct synthetic wage records before checking access. Browser fixtures exercise Next.js against a local mock service. They do not replace staging tests with real Auth sessions and PostgREST. Native testing used PostgreSQL 17.12; repeat staging checks on the intended deployment's database version.
 
 To reproduce native tests, set `SHIFTLY_TEST_DATABASE_URL` to an administrative connection for a disposable local database. The harness restricts native connections to loopback. Never use a hosted employee database for test execution. Run launch and navigation browser fixtures sequentially because they share local ports.
 
@@ -43,7 +61,7 @@ Before any deployment:
 
 1. Review the SQL, privately verify the target database and compare its schema and migration history with the repository. Do not replay earlier migrations or run an unreviewed blanket migration push. Resolve any mismatch before proceeding.
 2. Take an encrypted private backup and prove restoration to an isolated target. Keep all dumps and environment-specific review material outside Git, logs and PR attachments.
-3. Apply this migration to staging first. It expects the preceding repository schema, including the original function locations; unexpected state should be investigated instead of bypassing errors.
+3. Apply this migration to staging first. It expects the preceding repository schema, including the original function locations; unexpected state should be investigated instead of bypassing errors. Its timestamp precedes the employee-colors migration. If colors is already recorded as applied, explicitly review the older pending migration in the target history and apply only the approved SQL; do not blindly replay or mark migrations applied. If colors is still pending, validate security then colors in timestamp order.
 4. With synthetic accounts and real staging JWTs, test compatible RPC calls, authorized management operations, denied employee/foreign-workplace operations, invitation expiry/replay, and private-schema rejection through PostgREST.
 5. Verify profile bootstrap, existing records, final response headers, manager routes/exports, and a publish → employee view → coverage consent → manager approval workflow. Also verify a two-employee swap requires consent and manager approval under the selected pilot policy.
 6. Confirm the private schema is excluded from the Data API's exposed schemas. Checked private implementations still need the narrow permissions used by invoker wrappers; do not revoke them indiscriminately.

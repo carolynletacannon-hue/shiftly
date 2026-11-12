@@ -61,9 +61,13 @@ test("pilot: complete migration chain, two workplaces, role matrix, privacy and 
     }
     await rpc("schedule_command",a,"publish",{schedule_id:schedule.id,allow_incomplete:true},await revision());
     await db.exec("reset role");
+    // Main may already have applied employee colors before this older migration.
+    assert.equal((await db.query("update public.employees set color_key='teal' where organization_id=$1 and user_id=$2 returning id", [a, employee])).rows.length, 1);
+    const rosterBeforeUpgrade = (await db.query("select * from public.employees order by organization_id,id")).rows;
     const beforeUpgrade = (await db.query("select * from public.published_shifts order by id")).rows;
     await db.exec(await readFile(new URL(hardening,dir),"utf8"));
     assert.deepEqual((await db.query("select * from public.published_shifts order by id")).rows,beforeUpgrade);
+    assert.deepEqual((await db.query("select * from public.employees order by organization_id,id")).rows,rosterBeforeUpgrade);
     const afterUpgradeUser = randomUUID();
     await db.query("insert into auth.users(id,email,email_confirmed_at) values($1,'after-upgrade@example.test',now())",[afterUpgradeUser]);
     assert.equal((await row("select id from public.profiles where id=$1",[afterUpgradeUser])).id,afterUpgradeUser);
