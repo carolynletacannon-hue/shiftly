@@ -33,6 +33,7 @@ export type Member = {
   name: string;
   role: string;
   archived?: boolean;
+  color_key?: string | null;
 };
 export type Position = { id: string; name: string };
 export type ShiftTemplate = {

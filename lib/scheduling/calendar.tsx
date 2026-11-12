@@ -1,3 +1,5 @@
+import { EmployeeColorLabel } from "./employee-color-label";
+import { employeeColorStyle } from "./employee-colors";
 import { ResponsiveWeek } from "./responsive-week";
 import { Button } from "@/app/ui/button";
 import { groupShifts } from "./groups";
@@ -32,36 +34,60 @@ export function ScheduleCalendar({
       day: "numeric",
       timeZone: "UTC",
     }).format(new Date(day + "T12:00:00Z"));
-  const card = (s: Shift & { assignments?: Shift[] }, showName = false) => (
-    <div key={s.id} className="schedule-shift">
-      {s.label && <strong>{s.label}</strong>}
-      {showName && (
-        <strong>
-          {(s.assignments || [s])
-            .map(
-              (a) =>
-                members.find((m) => m.id === a.employee_id)?.name ||
-                "Team member",
-            )
-            .join(", ")}
-        </strong>
-      )}
-      {onShift ? (
-        <button
-          type="button"
-          className="shift-edit"
-          onClick={() => onShift(s)}
-          aria-label={`Edit shift: ${shiftLabel(s.starts_at, s.ends_at, timezone)}`}
-        >
-          {shiftLabel(s.starts_at, s.ends_at, timezone)}
-        </button>
-      ) : (
-        <strong>{shiftLabel(s.starts_at, s.ends_at, timezone)}</strong>
-      )}
-      <span>{s.position_name || "General"}</span>
-      {s.notes && <small>{s.notes}</small>}
-    </div>
-  );
+  const card = (s: Shift & { assignments?: Shift[] }, showName = false) => {
+    const assignments = (s.assignments || [s]).filter(
+      (assignment) => assignment.employee_id,
+    );
+    const single =
+      assignments.length === 1
+        ? members.find((member) => member.id === assignments[0].employee_id)
+        : undefined;
+    return (
+      <div
+        key={s.id}
+        className={`schedule-shift ${assignments.length === 1 ? "has-employee-color" : ""}`}
+        style={
+          assignments.length === 1
+            ? employeeColorStyle(single?.color_key)
+            : undefined
+        }
+      >
+        {s.label && <strong>{s.label}</strong>}
+        {assignments.length > 0 ? (
+          <span className="employee-color-names">
+            {assignments.map((assignment) => {
+              const member = members.find(
+                (member) => member.id === assignment.employee_id,
+              );
+              return (
+                <EmployeeColorLabel
+                  key={assignment.id}
+                  name={member?.name || "Team member"}
+                  color={member?.color_key}
+                />
+              );
+            })}
+          </span>
+        ) : (
+          showName && <span className="muted">Unassigned</span>
+        )}
+        {onShift ? (
+          <button
+            type="button"
+            className="shift-edit"
+            onClick={() => onShift(s)}
+            aria-label={`Edit shift: ${shiftLabel(s.starts_at, s.ends_at, timezone)}`}
+          >
+            {shiftLabel(s.starts_at, s.ends_at, timezone)}
+          </button>
+        ) : (
+          <strong>{shiftLabel(s.starts_at, s.ends_at, timezone)}</strong>
+        )}
+        <span>{s.position_name || "General"}</span>
+        {s.notes && <small>{s.notes}</small>}
+      </div>
+    );
+  };
   return (
     <>
       <ResponsiveWeek
@@ -78,7 +104,11 @@ export function ScheduleCalendar({
           <div className="schedule-hour-summary">
             {members.map((member) => (
               <span key={member.id}>
-                <strong>{member.name}</strong> ·{" "}
+                <EmployeeColorLabel
+                  name={member.name}
+                  color={member.color_key}
+                />{" "}
+                ·{" "}
                 {hoursInWeek(
                   [...shifts, ...carryIn].filter(
                     (s) => s.employee_id === member.id,
@@ -152,7 +182,10 @@ export function ScheduleCalendar({
                   return (
                     <tr key={member.id}>
                       <th scope="row">
-                        <strong>{member.name}</strong>
+                        <EmployeeColorLabel
+                          name={member.name}
+                          color={member.color_key}
+                        />
                         <span
                           className={
                             hours > warning ? "hours-warning" : "muted"

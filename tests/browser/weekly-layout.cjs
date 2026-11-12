@@ -25,6 +25,7 @@ const employees = names.map((display_name, i) => ({
   user_id: i === 0 ? owner : i === 1 ? employee : null,
   display_name,
   archived_at: null,
+  color_key: ["blue", "pink", "teal", "amber", "purple"][i],
 }));
 const sid = "00000000-0000-0000-0000-000000000020";
 const shifts = [];
@@ -82,7 +83,7 @@ setTableResponses({
   manage_calendar_subscription: { active: false },
 });
 const phase = process.env.CAPTURE_PHASE || "after";
-const dir = `work/weekly/${phase}`;
+const dir = process.env.COLOR_TEST_ARTIFACTS || `work/weekly/${phase}`;
 fs.mkdirSync(dir, { recursive: true });
 (async () => {
   await new Promise((r) => fixture.listen(54321, "127.0.0.1", r));
@@ -140,6 +141,19 @@ fs.mkdirSync(dir, { recursive: true });
       );
       assert.deepEqual(violations, [], `accessibility ${selector}`);
     }
+    if (process.env.COLOR_TEST_ARTIFACTS) {
+      await require("./employee-colors.cjs").checkColors({
+        browser,
+        page,
+        context,
+        employees,
+        dir,
+        session,
+        owner,
+        employee,
+        org,
+      });
+    }
     const reports = [];
     const cases = [
       {
@@ -195,6 +209,63 @@ fs.mkdirSync(dir, { recursive: true });
         );
         await page.waitForLoadState("networkidle");
         await page.locator(test.grid).waitFor();
+        if (process.env.COLOR_TEST_ARTIFACTS) {
+          assert.ok(
+            (await page.locator(`${test.grid} [data-employee-color]`).count()) >
+              0,
+            "calendar shows employee colors",
+          );
+          if (test.view === "team" || test.path === "schedule") {
+            const keys = await page
+              .locator(`${test.grid} [data-employee-color]`)
+              .evaluateAll((nodes) => [
+                ...new Set(nodes.map((node) => node.dataset.employeeColor)),
+              ]);
+            assert.ok(
+              keys.includes("blue") && keys.includes("pink"),
+              "multi-employee shifts retain individual colors",
+            );
+          }
+          if (width === 1280 && test.path === "schedule") {
+            await page.emulateMedia({ media: "print" });
+            const printed = await page
+              .locator(".print-schedule")
+              .evaluate((el) => ({
+                visible: el.getClientRects().length > 0,
+                overflow: el.scrollWidth > el.clientWidth + 1,
+                columns: el.querySelectorAll("th[scope=col]").length,
+                labels: [...el.querySelectorAll(".employee-color-label")].map(
+                  (n) => ({
+                    color: getComputedStyle(n).borderInlineStartColor,
+                    text: n.textContent,
+                    ink: getComputedStyle(n).color,
+                  }),
+                ),
+              }));
+            assert.ok(printed.visible && !printed.overflow);
+            assert.equal(printed.columns, 7);
+            assert.ok(
+              printed.labels.some((n) => n.color === "rgb(52, 103, 160)"),
+            );
+            assert.ok(
+              printed.labels.some((n) => n.color === "rgb(165, 79, 120)"),
+            );
+            assert.ok(
+              printed.labels.every((n) => n.text && n.ink === "rgb(0, 0, 0)"),
+            );
+            await page.pdf({
+              path: `${dir}/colored-schedule.pdf`,
+              format: "Letter",
+              landscape: true,
+              printBackground: false,
+            });
+            await page.screenshot({
+              path: `${dir}/colored-print.png`,
+              fullPage: true,
+            });
+            await page.emulateMedia({ media: "screen" });
+          }
+        }
         const result = await page.locator(test.grid).evaluate((el) => ({
           pageOverflow: document.documentElement.scrollWidth > innerWidth,
           gridOverflow: el.scrollWidth > el.clientWidth + 1,

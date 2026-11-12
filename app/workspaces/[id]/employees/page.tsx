@@ -1,3 +1,5 @@
+import { EmployeeColorSwatch } from "@/lib/scheduling/employee-color-label";
+import { EmployeeColorPicker } from "./color-picker";
 import "./employees.css";
 import { EmployeeAccordion } from "./accordion";
 import { EmployeeActions } from "./employee-actions";
@@ -20,7 +22,7 @@ export default async function Page({
   const [roster, contacts, invitations] = await Promise.all([
     db
       .from("employees")
-      .select("id,display_name,user_id,archived_at")
+      .select("id,display_name,user_id,archived_at,color_key")
       .eq("organization_id", id)
       .order("display_name"),
     db.rpc("employee_contacts", { org: id }),
@@ -112,6 +114,7 @@ export default async function Page({
                       </span>
                       <div className="employee-name-line">
                         <h2>{employee.display_name}</h2>
+                        <EmployeeColorSwatch color={employee.color_key} />
                         <span
                           className={`employee-status ${employee.user_id ? "connected" : pending ? "invited" : "roster"}`}
                         >
@@ -150,6 +153,10 @@ export default async function Page({
                         label="Phone (optional)"
                         required={false}
                         defaultValue={contact?.phone || ""}
+                      />
+                      <EmployeeColorPicker
+                        key={`${employee.id}:${employee.color_key}`}
+                        current={employee.color_key}
                       />
                       <Button icon="check" className="button secondary">
                         Save employee
@@ -219,6 +226,7 @@ export default async function Page({
                 <div className="employee-card-header">
                   <div className="employee-name-line">
                     <h3>{employee.display_name}</h3>
+                    <EmployeeColorSwatch color={employee.color_key} />
                     <span className="employee-status archived">Archived</span>
                   </div>
                   <EmployeeActions

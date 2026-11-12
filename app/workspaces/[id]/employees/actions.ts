@@ -1,4 +1,5 @@
 "use server";
+import { isEmployeeColorKey } from "@/lib/scheduling/employee-colors";
 import { requireWorkspace } from "@/lib/auth";
 import { field } from "@/lib/forms";
 import { revalidatePath } from "next/cache";
@@ -9,7 +10,13 @@ export async function saveEmployee(form: FormData) {
   const org = field(form, "organization_id");
   const { db } = await requireWorkspace(org, ["owner", "manager"]);
   const id = String(form.get("id") || "");
+  const color = form.get("color_key");
+  if (color !== null && !isEmployeeColorKey(color)) {
+    redirect(`/workspaces/${org}/employees?message=Choose+a+valid+employee+color.`);
+  }
   const values = {
+    // Older/contact-only forms must never reset a manually selected color.
+    ...(color !== null ? { color_key: color } : {}),
     display_name: field(form, "display_name"),
     email:
       String(form.get("email") || "")
@@ -30,6 +37,7 @@ export async function saveEmployee(form: FormData) {
         .select("id");
   revalidatePath(`/workspaces/${org}/employees`);
   revalidatePath(`/workspaces/${org}/schedule`);
+  revalidatePath(`/workspaces/${org}/my-schedule`);
   redirect(
     `/workspaces/${org}/employees?${form.get("setup") === "1" ? "setup=1&" : ""}message=${encodeURIComponent(result.error || !result.data?.length ? "Unable to save employee. Check the name and contact information." : "Employee saved and ready to schedule.")}`,
   );

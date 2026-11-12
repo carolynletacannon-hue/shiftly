@@ -1,4 +1,6 @@
 "use client";
+import { EmployeeColorLabel } from "./employee-color-label";
+import { employeeColorStyle } from "./employee-colors";
 import * as Popover from "@radix-ui/react-popover";
 import { ResponsiveWeek } from "./responsive-week";
 import { Select } from "@/app/ui/select";
@@ -177,7 +179,18 @@ export function CoverageCalendar({
                     group.assignments.length >= group.required_count;
                   return (
                     <article
-                      className={`coverage-slot ${covered ? "covered" : "unassigned"} ${hardConflict ? "has-conflict" : ""}`}
+                      className={`coverage-slot ${covered ? "covered" : "unassigned"} ${hardConflict ? "has-conflict" : ""} ${group.assignments.length === 1 ? "has-employee-color" : ""}`}
+                      style={
+                        group.assignments.length === 1
+                          ? employeeColorStyle(
+                              members.find(
+                                (member) =>
+                                  member.id ===
+                                  group.assignments[0].employee_id,
+                              )?.color_key,
+                            )
+                          : undefined
+                      }
                       key={group.id}
                     >
                       <Popover.Root
@@ -218,18 +231,19 @@ export function CoverageCalendar({
                             <span className="slot-assignees">
                               {group.assignments.map((a) => (
                                 <span className="slot-assignee" key={a.id}>
-                                  <span
-                                    className="avatar-mini"
-                                    aria-hidden="true"
-                                  >
-                                    {members
-                                      .find((m) => m.id === a.employee_id)
-                                      ?.name.slice(0, 1) || "S"}
-                                  </span>
-                                  <span className="slot-assignee-name">
-                                    {members.find((m) => m.id === a.employee_id)
-                                      ?.name || "Team member"}
-                                  </span>
+                                  <EmployeeColorLabel
+                                    className="slot-assignee-name"
+                                    name={
+                                      members.find(
+                                        (m) => m.id === a.employee_id,
+                                      )?.name || "Team member"
+                                    }
+                                    color={
+                                      members.find(
+                                        (m) => m.id === a.employee_id,
+                                      )?.color_key
+                                    }
+                                  />
                                 </span>
                               ))}
                               {!group.assignments.length && (
