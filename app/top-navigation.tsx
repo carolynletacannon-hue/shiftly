@@ -1,4 +1,5 @@
 "use client";
+import { useDetailsDismiss } from "./use-details-dismiss";
 import { ProductSwitcher } from "./product-switcher";
 import { NotificationBell } from "./notification-bell";
 import { Brand } from "./brand";
@@ -16,6 +17,7 @@ export function TopNavigation({
   workspace?: { id: string; role: string; name?: string };
 }) {
   const pathname = usePathname();
+  const accountRef = useDetailsDismiss(pathname);
   const [unread, setUnread] = useState<number | null>(null);
   useEffect(() => {
     if (!workspace) return;
@@ -219,6 +221,7 @@ export function TopNavigation({
       </nav>
       {workspace && <NotificationBell base={base} unread={unread} />}
       <details
+        ref={accountRef}
         className="workspace-menu"
         onToggle={(event) => {
           if (event.currentTarget.open) {

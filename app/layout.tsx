@@ -5,6 +5,7 @@ import "./scheduling.css";
 import "./design-system.css";
 import "./launch.css";
 import "./products.css";
+import "./controls.css";
 import "./print-schedule.css";
 
 export const metadata: Metadata = {
