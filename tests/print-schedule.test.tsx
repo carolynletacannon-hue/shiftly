@@ -34,8 +34,18 @@ function render(
       shifts,
       // Members are roster identities; no account ID or email is needed to print.
       members: [
-        { id: "roster-only", name: "Sample Employee A", role: "employee" },
-        { id: "another-employee", name: "Sample Employee B", role: "employee" },
+        {
+          id: "roster-only",
+          name: "Sample Employee A",
+          role: "employee",
+          color_key: "blue",
+        },
+        {
+          id: "another-employee",
+          name: "Sample Employee B",
+          role: "employee",
+          color_key: "pink",
+        },
       ],
       draft: true,
       ...options,
@@ -62,6 +72,8 @@ test("prints seven dated columns, all employees sharing a shift and remaining un
   assert.match(html, /America\/Denver/);
   assert.match(html, /Sample Employee A/);
   assert.match(html, /Sample Employee B/);
+  assert.match(html, /data-employee-color="blue"/);
+  assert.match(html, /data-employee-color="pink"/);
   assert.match(html, /Unassigned \(2\)/);
   assert.doesNotMatch(
     html,

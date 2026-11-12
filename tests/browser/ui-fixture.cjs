@@ -71,6 +71,29 @@ const fixture = createServer((req, res) => {
     });
     return;
   }
+  // Persist synthetic employee edits so real server actions can be checked across
+  // refreshes and independent browser contexts. Authorization itself is tested in SQL.
+  if (table === "employees" && req.method === "PATCH") {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      if (
+        id === employee ||
+        url.searchParams.get("organization_id") !== `eq.${org}`
+      ) {
+        res.statusCode = 403;
+        return res.end(JSON.stringify({ message: "Not authorized" }));
+      }
+      const values = JSON.parse(body);
+      const rows = tableResponses.employees || fixtureEmployees;
+      const changed = rows.filter(
+        (row) => `eq.${row.id}` === url.searchParams.get("id"),
+      );
+      changed.forEach((row) => Object.assign(row, values));
+      res.end(JSON.stringify(changed.map((row) => ({ id: row.id }))));
+    });
+    return;
+  }
   let result = [];
   if (table === "memberships")
     result =

@@ -1,3 +1,5 @@
+import { EmployeeColorLabel } from "@/lib/scheduling/employee-color-label";
+import { employeeColorStyle } from "@/lib/scheduling/employee-colors";
 import { PageHeader, Card } from "@/app/ui/surfaces";
 import { ButtonLink } from "@/app/ui/button";
 import Link from "next/link";
@@ -64,7 +66,7 @@ export default async function Page({
       .maybeSingle(),
     db
       .from("employees")
-      .select("id,user_id,display_name")
+      .select("id,user_id,display_name,color_key")
       .eq("organization_id", id),
   ]);
   if (publicationError || rosterError)
@@ -108,6 +110,7 @@ export default async function Page({
       id: m.id,
       role: "employee",
       name: m.display_name,
+      color_key: m.color_key,
     }));
   return (
     <>
@@ -212,7 +215,24 @@ export default async function Page({
                     published_schedules: { timezone: string };
                   })[]
                 ).map((s) => (
-                  <article className="template-card" key={s.id}>
+                  <article
+                    className="template-card has-employee-color"
+                    key={s.id}
+                    style={employeeColorStyle(
+                      members.find((member) => member.id === s.employee_id)
+                        ?.color_key,
+                    )}
+                  >
+                    <EmployeeColorLabel
+                      name={
+                        members.find((member) => member.id === s.employee_id)
+                          ?.name || "Team member"
+                      }
+                      color={
+                        members.find((member) => member.id === s.employee_id)
+                          ?.color_key
+                      }
+                    />
                     <p className="eyebrow">
                       {new Intl.DateTimeFormat("en-US", {
                         weekday: "long",

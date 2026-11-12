@@ -66,7 +66,7 @@ export async function SchedulingPage({
       .maybeSingle(),
     db
       .from("employees")
-      .select("id,display_name,user_id,archived_at")
+      .select("id,display_name,user_id,archived_at,color_key")
       .eq("organization_id", id),
     db
       .from("positions")
@@ -167,6 +167,7 @@ export async function SchedulingPage({
       id: m.id,
       role: "employee",
       name: m.display_name,
+      color_key: m.color_key,
       archived: !!m.archived_at,
     }));
   return (
