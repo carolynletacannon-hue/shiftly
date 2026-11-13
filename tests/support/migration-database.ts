@@ -5,8 +5,13 @@ import { Client } from "pg";
 
 type MigrationDatabase = {
   exec(sql: string): Promise<unknown>;
-  query<T = Record<string, unknown>>(sql: string, args?: unknown[]): Promise<{ rows: T[] }>;
+  query<T = Record<string, unknown>>(
+    sql: string,
+    args?: unknown[],
+  ): Promise<{ rows: T[] }>;
   close(): Promise<void>;
+  /** Independent session to this disposable native database, for lock tests. */
+  connectPeer?(): Promise<Client>;
 };
 
 /** Default to embedded PostgreSQL. Opt in to a disposable native local database. */
@@ -33,6 +38,11 @@ export async function migrationDatabase(): Promise<MigrationDatabase> {
     throw error;
   }
   return {
+    async connectPeer() {
+      const peer = new Client({ connectionString: url.toString() });
+      await peer.connect();
+      return peer;
+    },
     async exec(sql: string) {
       // Auth roles are cluster-wide on native PostgreSQL, unlike PGlite fixtures.
       return client.query(
